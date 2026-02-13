@@ -15,13 +15,13 @@ jobs:
       - name: Build Wasm
         run: cargo build --target wasm32-wasip1
 
-      - name: Setup Docker Wasm Support
+      - name: Setup Wasmtime
         run: |
-          # GitHub runner'larında Docker zaten var, Wasm desteğini hızlıca ekliyoruz
-          sudo apt-get update
-          sudo apt-get install -y wasmtime
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
 
       - name: Run RAM Monster Test (With 128MB Limit)
         run: |
-          # Wasmtime ile limiti simüle ediyoruz (Docker Terminal hatası burada yaşanmaz)
+          # Artık wasmtime doğrudan path üzerinde olacak
           wasmtime run --wasm-max-mem 134217728 target/wasm32-wasip1/debug/isobrowse_test.wasm
+
