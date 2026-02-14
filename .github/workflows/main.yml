@@ -22,6 +22,6 @@ jobs:
 
       - name: Run RAM Monster Test (With 128MB Limit)
         run: |
-          # Yeni sürüm wasmtime için güncel limit belirleme komutu
-          wasmtime run --wasm max-mem=134217728 target/wasm32-wasip1/debug/isobrowse_test.wasm
+          # Yeni sürüm Wasmtime için en garantili limit belirleme yöntemi
+          wasmtime run -S memory-reservation=134217728 target/wasm32-wasip1/debug/isobrowse_test.wasm
 
