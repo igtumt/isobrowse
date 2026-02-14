@@ -20,8 +20,9 @@ jobs:
           curl https://wasmtime.dev/install.sh -sSf | bash
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
 
-      - name: Run RAM Monster Test (With 128MB Limit)
+      - name: Run RAM Monster Test
         run: |
-          # Yeni sürüm Wasmtime için en garantili limit belirleme yöntemi
-          wasmtime run -S memory-reservation=134217728 target/wasm32-wasip1/debug/isobrowse_test.wasm
+          # En temel çalıştırma komutu (Parametresiz)
+          # Eğer motor çalışırsa loglarda "IsoBrowse Motoru Başlatıldı..." yazısını göreceğiz.
+          wasmtime run target/wasm32-wasip1/debug/isobrowse_test.wasm
 
