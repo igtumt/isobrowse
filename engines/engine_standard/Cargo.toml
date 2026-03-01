@@ -1,0 +1,11 @@
+[package]
+name = "engine_standard"
+version = "3.5.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Şimdilik saf Rust, bağımlılık yok!
+

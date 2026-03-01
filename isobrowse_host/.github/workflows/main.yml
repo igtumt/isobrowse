@@ -1,0 +1,28 @@
+name: IsoBrowse Sandbox Test
+
+on: [push]
+
+jobs:
+  test-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust and Wasm Target
+        run: |
+          rustup target add wasm32-wasip1
+
+      - name: Build Wasm
+        run: cargo build --target wasm32-wasip1
+
+      - name: Setup Wasmtime
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
+      - name: Run RAM Monster Test
+        run: |
+          # En temel çalıştırma komutu (Parametresiz)
+          # Eğer motor çalışırsa loglarda "IsoBrowse Motoru Başlatıldı..." yazısını göreceğiz.
+          wasmtime run target/wasm32-wasip1/debug/isobrowse_test.wasm
+

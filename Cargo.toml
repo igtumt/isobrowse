@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "isobrowse_host",
+    "engines/engine_ghost",
+    "engines/engine_standard" # YENİ MOTORUMUZ EKLENDİ
+]
+resolver = "2"

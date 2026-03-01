@@ -1,0 +1,19 @@
+[package]
+name = "isobrowse_host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tao = "0.30"
+wry = "0.44"
+wasmtime = "26.0"
+wasmtime-wasi = "26.0"
+reqwest = { version = "0.12", features = ["blocking", "cookies"] }
+serde_json = "1.0"
+http = "1.1" # BUNU EKLE
+sysinfo = "0.30.5"
+
+[package.metadata.bundle]
+name = "IsoBrowse"
+identifier = "com.isobrowse.app"
+
