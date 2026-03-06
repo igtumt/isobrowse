@@ -14,19 +14,14 @@ pub extern "C" fn on_data_received(ptr: *mut u8, len: usize) {
     let script_count = raw_html.to_lowercase().matches("<script").count();
     let iframe_count = raw_html.to_lowercase().matches("<iframe").count();
     
+    // TOXIC CSS COMPLETELY REMOVED! Host (UI) now handles the design.
     let ghost_html = raw_html
-        .replace("<script", "<script type='application/ghost' style='display:none;'")
+        .replace("<script", "<template") // Fully compatible with the meat grinder in Host
+        .replace("</script>", "</template>")
         .replace("onclick", "data-blocked-click")
         .replace("target=\"_blank\"", "")
         .replace("target='_blank'", "")
         .replace("<iframe", "<iframe sandbox='' style='opacity: 0.3; pointer-events: none;' ");
-
-    let safe_css = r#"
-        <style>
-            .ad, .advertisement, [id*="ad-"], [class*="ad-"], [id*="banner"], [class*="banner"] { display: none !important; }
-            body { margin: 0; padding: 0; background-color: #fff; }
-        </style>
-    "#;
 
     let interceptor_js = r#"
         <script>
@@ -46,20 +41,21 @@ pub extern "C" fn on_data_received(ptr: *mut u8, len: usize) {
         </script>
     "#;
 
-    // Sağ alt köşedeki şık Mod 1 (Ghost Mode) rozeti
+    // Stylish Mod 1 (Ghost Mode) badge in the bottom right corner
     let info_badge = r#"
         <div id="iso-warning-badge" style="position: fixed; bottom: 50px; right: 20px; background: rgba(0, 20, 0, 0.95); color: #00ff41; border: 1px solid #00ff41; padding: 12px 18px; font-family: monospace; font-size: 11px; border-radius: 4px; z-index: 2147483647; box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <strong style="font-size: 13px;">[!] GHOST MODE AKTİF</strong>
+                <strong style="font-size: 13px;">[!] GHOST MODE ACTIVE</strong>
                 <button onclick="document.getElementById('iso-warning-badge').style.display='none'" style="background: none; border: none; color: #00ff41; cursor: pointer; font-weight: bold; font-size: 14px; margin-left: 20px;">X</button>
             </div>
-            <span style="color: #aaa; line-height: 1.5;">JS ve İframe'ler kilitlendi.<br>Site boş veya hatalıysa, bu site<br>Mod 2'ye (Standart) ihtiyaç duyar.</span>
+            <span style="color: #aaa; line-height: 1.5;">JS and Iframes locked down.<br>If the site is empty or broken,<br>it requires Mod 2 (Native).</span>
         </div>
     "#;
     
-    let final_html = format!("{}{}{}{}", safe_css, ghost_html, interceptor_js, info_badge);
+    // safe_css removed, only html and modules are combined
+    let final_html = format!("{}{}{}", ghost_html, interceptor_js, info_badge);
 
-    let log_msg = format!("GHOST_MODE // {} script, {} iframe kilitlendi.", script_count, iframe_count);
+    let log_msg = format!("GHOST_MODE // {} scripts, {} iframes locked down.", script_count, iframe_count);
     unsafe { send_to_ui(log_msg.as_ptr(), log_msg.len()); }
 
     unsafe { render_html(final_html.as_ptr(), final_html.len()); }
