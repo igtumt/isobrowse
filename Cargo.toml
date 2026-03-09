@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "isobrowse_host",
+    "runtimes/runtime_surf",
+    "runtimes/runtime_standard" # YENİ MOTORUMUZ EKLENDİ
+]
+resolver = "2"
