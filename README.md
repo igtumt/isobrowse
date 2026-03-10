@@ -40,32 +40,39 @@ Instead of relying on external websites to fetch data, IsoBrowse can synthesize 
 
 ## 🎛️ The Dashboard: Your Security Cockpit
 
-![IsoBrowse Dashboard Guide](dashboard.png)
+![IsoBrowse Dashboard Guide](isobrowse.png)(dashboard.png)
 
 The top panel of IsoBrowse acts as your real-time telemetry dashboard. Here is a quick guide to what you are looking at:
 
-**[ 1 ] Navigation & Run:** Standard back/forward controls and the address bar. The `RUN` button initiates the secure rendering process.
-**[ 2 ] Engine Toggle (MOD 1 / MOD 2):** Seamlessly switch between the hyper-secure WASM Ghost environment and the Native full-web experience.
-**[ 3 ] Hardware Telemetry (The 'Heartbeat'):** * **STATE:** Displays your current security context. Turns red and flashes `🚨 OVERLOAD RISK!` if anomalies are detected.
-* **CPU_LOAD & RAM:** Real-time hardware footprint of the page.
-* **DOM:** Total number of HTML elements. Phishing sites often have massive, bloated DOM structures.
-* **CO2 SAVED & BLOCKED:** Eco-metrics showing energy saved by destroying ad-scripts.
-**[ 4 ] Info Panel:** Provides immediate context on the active mode's rules and restrictions. 
-**[ 5 ] Terminal System Log:** Real-time Rust kernel logs showing you exactly what the browser is doing behind the scenes.
-
+* **[ 1 ] Navigation & Run:** Standard back/forward controls and the address bar. The `RUN` button initiates the secure rendering process.
+* **[ 2 ] Engine Toggle (MOD 1 / MOD 2):** Seamlessly switch between the hyper-secure WASM Ghost environment and the Native full-web experience.
+* **[ 3 ] Hardware Telemetry (The 'Heartbeat'):** * **STATE:** Displays your current security context. Turns red and flashes `🚨 OVERLOAD RISK!` if anomalies are detected.
+  * **CPU_LOAD & RAM:** Real-time hardware footprint of the page.
+  * **DOM:** Total number of HTML elements. Phishing sites often have massive, bloated DOM structures.
+  * **CO2 SAVED & BLOCKED:** Eco-metrics showing energy saved by destroying ad-scripts.
+* **[ 4 ] Info Panel:** Provides immediate context on the active mode's rules and restrictions. 
+* **[ 5 ] Terminal System Log:** Real-time Rust kernel logs showing you exactly what the browser is doing behind the scenes.
 
 ---
 
-## 📥 Installation (Try the MVP)
+## 📥 Download and Run (macOS MVP)
 
-You can test the MVP locally on your machine. Currently compiled for macOS and Windows.
+You can test the MVP locally on your machine. Currently packaged for macOS (Apple Silicon & Intel).
 
-1. Go to the [Releases](#) tab 
-2. Download the `.zip` (macOS) or `.exe` (Windows) file.
-3. Run the application and explore the web through a new, transparent lens.
+1. Go to the [Releases](https://github.com/igtumt/isobrowse/releases) tab and download `IsoBrowse-v1.0-Mac.zip`.
+2. Extract the ZIP file to your `Downloads` or `Applications` folder.
+3. **Important macOS Security Note:** Because IsoBrowse is an open-source experiment and not signed with a paid Apple Developer certificate, macOS Gatekeeper will incorrectly flag it as "damaged". To bypass this and remove the quarantine flag, run this single command in your terminal:
+   
+   ```bash
+   xattr -cr /path/to/your/extracted/IsoBrowse.app
+   ```
 
+4. Double click `IsoBrowse.app` to launch the zero-trust runtime!
 
-## 📥 Build and Run from Source (macOS)
+---
+
+## 🛠️ Build and Run from Source
+
 IsoBrowse MVP is currently optimized and tested for macOS (Apple Silicon & Intel). 
 
 **Prerequisites:**
@@ -78,36 +85,26 @@ IsoBrowse MVP is currently optimized and tested for macOS (Apple Silicon & Intel
 git clone [https://github.com/igtumt/isobrowse.git](https://github.com/igtumt/isobrowse.git)
 cd isobrowse
 sh run.sh
+```
 
-
-Note: You may encounter UI bugs on heavily dynamic SPA sites while in Surf Mode (Mod 1). We are actively researching a custom Headless Rendering Engine to handle these architectures gracefully in the future.
-
----
-
-## 🧪 An Experimental Journey
-IsoBrowse is currently an MVP (Minimum Viable Product) and an open experiment. This dual-execution, hardware-telemetry approach is a proof of concept. If the community finds value in this vision, we have a massive roadmap ahead—including a custom Headless Rendering Engine for highly dynamic sites and more customizable telemetry hooks. Try it, and let us know what you think. Your feedback will shape the future of this browser!
+*Note: You may encounter UI bugs on heavily dynamic SPA sites while in Surf Mode (Mod 1). We are actively researching a custom Headless Rendering Engine to handle these architectures gracefully in the future.*
 
 ---
 
-## 🧪 Experimental Concept
+## 🧪 Experimental Concept & Journey
 
-IsoBrowse explores an experimental browsing model where web pages are treated as runtime data instead of executable environments.
+IsoBrowse explores an experimental browsing model where web pages are treated as **runtime data** instead of executable environments. Instead of directly executing websites inside a browser engine, the runtime:
 
-Instead of directly executing websites inside a browser engine, the runtime:
+1. Fetches
+2. Analyzes
+3. Sanitizes
+4. Renders
 
-1.fetches
-2.analyzes
-3.sanitizes
-4.renders
+...web content through an isolated processing pipeline. This approach experiments with web content virtualization.
 
-web content through an isolated processing pipeline.
-This approach experiments with web content virtualization.
+This dual-execution, hardware-telemetry approach is currently a proof of concept (MVP). If the community finds value in this vision, we have a massive roadmap ahead—including a custom Headless Rendering Engine for highly dynamic sites and more customizable telemetry hooks. Try it, break it, and let us know what you think. Your feedback will shape the future of this browser!
 
 ---
 
 ## 📜 License
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the `LICENSE` file for details. 
-
-
-
-
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the `LICENSE` file for details.
