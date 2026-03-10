@@ -40,7 +40,8 @@ Instead of relying on external websites to fetch data, IsoBrowse can synthesize 
 
 ## 🎛️ The Dashboard: Your Security Cockpit
 
-![IsoBrowse Dashboard Guide](isobrowse.png)(dashboard.png)
+![IsoBrowse Dashboard Guide](isobrowse.png)
+![Top Bar](dashboard.png)
 
 The top panel of IsoBrowse acts as your real-time telemetry dashboard. Here is a quick guide to what you are looking at:
 
