@@ -16,4 +16,7 @@ sysinfo = "0.30.5"
 [package.metadata.bundle]
 name = "IsoBrowse"
 identifier = "com.isobrowse.app"
+version = "1.0.0"
+category = "Productivity"
+short_description = "Zero-Trust Browser Runtime"
 
