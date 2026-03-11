@@ -23,6 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     
+    // İşletim Sistemi (OS) Telemetri Motoru
     let telemetry_proxy = proxy.clone();
     thread::spawn(move || {
         let mut sys = System::new_all();
@@ -39,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     
+    // Güvenli Web İstek Motoru (Kalkanlı User-Agent)
     let http_client = Arc::new(
         reqwest::blocking::Client::builder()
             .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15")
@@ -53,6 +55,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_inner_size(tao::dpi::LogicalSize::new(1400.0, 950.0))
         .build(&event_loop)?;
 
+    // ==========================================
+    // ÇEKİRDEK JAVASCRIPT / ARAYÜZ MOTORU
+    // ==========================================
     let init_script = r##"
         // MAC OS CMD+C / CMD+A VE GENEL KLAVYE ÇÖKME KALKANI
         document.addEventListener('keydown', function(e) {
@@ -137,22 +142,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if (document.getElementById('isobrowse-shadow-host')) return;
 
                 if (window.location.hostname.includes('captive.apple.com')) {
-                    let w_html = '<div style="margin-top: 105px; background-color: #050505; color: #00ff41; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 105px); box-sizing: border-box; width: 100%; position: absolute; top: 0; left: 0; z-index: 10000;">';
-                    w_html += '<div style="border: 1px solid #00ff41; padding: 40px; box-shadow: 0 0 20px #00ff4122; background: #0a0a0a; text-align: center; max-width: 650px;">';
-                    w_html += '<h1 style="color: #00ccff; text-shadow: 0 0 10px #00ccff55; font-size: 36px; margin-bottom: 5px;">⚡ IsoBrowse Runtime</h1>';
-                    w_html += '<div style="color: #888; font-size: 14px; margin-bottom: 30px;">The Programmable, Zero-Trust Web Pipeline (v1.0 MVP)</div>';
-                    w_html += '<p style="color:#aaa; line-height:1.6; margin-bottom: 20px;">System initialized. OS Kernel telemetry hooked. You are currently in a secure execution environment.</p>';
-                    w_html += '<div style="text-align: left; background: #111; padding: 20px; border: 1px dashed #333; display: inline-block; width: 100%; box-sizing: border-box;">';
-                    w_html += '<p style="margin-top:0; color:#fff;">Available Runtime Tasks:</p>';
-                    w_html += '<p><strong style="color: #ffcc00;">/news</strong>   - Aggregates global news securely.</p>';
-                    w_html += '<p><strong style="color: #ffcc00;">/crypto</strong> - Live market telemetry.</p>';
-                    w_html += '<p><strong style="color: #ffcc00;">/gold</strong>   - Aggregates commodity prices from 3 sources.</p>';
-                    w_html += '<p><strong style="color: #ff3366;">/game</strong>   - Local WASM execution test (Retro).</p>';
-                    w_html += '<p style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #444; color:#888; font-size: 10px;">V2.0 ROADMAP: /chat (Serverless P2P Comms), /trade (DeFi)</p>';
-                    w_html += '</div>';
-                    w_html += '<p style="animation: iso-blink 2s infinite; margin-top:30px; color:#ff3366; font-weight:bold;">> Awaiting instructions...</p>';
-                    w_html += '</div></div>';
                     
+                    // ANA VİTRİN VE LOGO (Saf JavaScript / Kusursuz Tasarım)
+                    let w_html = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace;">
+                            <h1 style="color: #00ccff; text-shadow: 0 0 10px #00ccff55; font-size: 36px; margin-bottom: 5px;">⚡ IsoBrowse Runtime</h1>
+                            <p style="color: #888; margin-top: 0;">The Programmable, Zero-Trust Web Pipeline (v1.0 MVP)</p>
+                            
+                            <p style="color: #aaa; margin: 20px 0 30px 0; max-width: 600px; text-align: center;">
+                                System initialized. OS Kernel telemetry hooked. You are currently in a secure execution environment.
+                            </p>
+                    `;
+
+                    w_html += '<div style="color: #ccc; text-align: left; background: #111; padding: 20px; border: 1px dashed #333; display: inline-block; width: 100%; max-width: 800px; box-sizing: border-box; font-weight: normal;">';
+                    w_html += '<p style="margin-top:0; color:#fff; font-weight:bold; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:15px;">LOCAL WORKSPACE & DECENTRALIZED MODULES:</p>';
+                    
+                    // GRUP 1: İNTERNET VERİSİ VE FİLTRELEME (MAVİ)
+                    w_html += '<p title="Info: In Mod 1 (Surf), all standard URL navigations automatically use the /nojs pipeline by default."><strong style="color: #00ccff; font-weight:bold; cursor:help;">/nojs</strong>   - Strips JavaScript and trackers from any target URL. ℹ️</p>';
+                    w_html += '<p><strong style="color: #00ccff; font-weight:bold;">/news</strong>   - Aggregates global news securely.</p>';
+                    w_html += '<p><strong style="color: #00ccff; font-weight:bold;">/crypto</strong> - Live market telemetry.</p>';
+                    
+                    w_html += '<div style="height:10px;"></div>';
+                    
+                    // GRUP 2: LOKAL İŞLEMCİ VE MOTOR (SARI)
+                    w_html += '<p><strong style="color: #ffcc00; font-weight:bold;">/game</strong>   - Local WASM execution test (Retro Snake).</p>';
+                    
+                    // RHAI (Gizli Örnekler / Hover Tooltip)
+                    w_html += '<p title="Ex 1: /rhai let x = 50; let y = 4; x * y&#10;Ex 2: /rhai let name = \'Hacker\'; \'Hello \' + name"><strong style="color: #ffcc00; font-weight:bold; cursor:help;">/rhai</strong>   - Executes native code. <span style="color:#888; font-size:10px;">(A fast JS/Rust-like language)</span> ℹ️ <span style="color:#00ff41; cursor:pointer; text-decoration:underline;" onclick="window.open(\'https://rhai.rs/book/language/\', \'_blank\')">[Syntax Guide]</span></p>';
+
+                    w_html += '<div style="height:10px;"></div>';
+
+                    // GRUP 3: HARİCİ UYGULAMA İNDİRME VE SANDBOX (TURUNCU)
+                    w_html += '<p style="margin-top:10px;"><strong style="color: #ff9900; font-weight:bold;">/fetch</strong>  - Downloads and executes remote WASM payloads securely in RAM.</p>';
+                    
+                    w_html += '</div>';
+                    w_html += '<p class="iso-alarm-active" style="color: #ff3366; margin-top: 30px;">> Awaiting instructions...</p>';
+                    w_html += '</div>';
+
                     document.body.innerHTML = w_html;
                     document.body.style.backgroundColor = '#050505';
                     document.body.style.margin = '0';
@@ -220,6 +246,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         <div class="gap" style="width:70%;">
                             <button id="iso-back"><</button>
                             <button id="iso-fwd">></button>
+                            <button id="iso-home" style="color:#00ccff; border-color:#00ccff;">HOME</button>
                             <input id="iso-url" type="text" value="${displayUrl}" placeholder="Enter URL or try tasks: /news, /crypto, /game">
                             <button id="iso-go">RUN</button>
                         </div>
@@ -316,7 +343,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     sessionStorage.setItem('iso_mode', 'STANDARD'); 
                     
                     let target = getEl('iso-url').value.trim();
-                    if (target === '' || target.startsWith('/')) { target = 'https://google.com'; } 
+                    if (target === '' || target.startsWith('/')) { target = 'https://captive.apple.com/hotspot-detect.html'; } 
+
                     else if (!target.startsWith('http')) { target = 'https://' + target; }
                     
                     window.location.href = target; 
@@ -367,7 +395,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         window.history.back(); 
                     }
                 };
-                
+
+                getEl('iso-home').onclick = () => {
+                    getEl('iso-url').value = '';
+                    window.location.href = 'https://captive.apple.com/hotspot-detect.html'; 
+                };
+
                 getEl('iso-fwd').onclick = () => { 
                     if (window.isoCurrentMode === 'SURF') {
                         if (window.isoHistoryIndex < window.isoHistory.length - 1) {
@@ -474,6 +507,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = webview.evaluate_script(&js_code);
             }
             Event::UserEvent(UserEvent::IpcMessage(msg)) => {
+                
                 if msg.starts_with("FETCH_SURF:") {
                     let raw_url = msg.replace("FETCH_SURF:", "");
                     let p_i = proxy.clone();
@@ -483,9 +517,154 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let start_time = Instant::now();
 
                         // =========================================================
-                        // TASK ENGINE (V.I.P BYPASS - WASM'A GİRMEDEN DİREKT EKRANA)
+                        // RHAI ENGINE (DAHİLİ KOD/BETİK ÇALIŞTIRICI)
                         // =========================================================
-                        if raw_url == "/news" || raw_url == "/crypto" || raw_url == "/gold" || raw_url == "/game" {
+                        if raw_url.starts_with("/rhai ") {
+                            let script = raw_url.strip_prefix("/rhai ").unwrap_or("").trim();
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal("> [RHAI ENGINE]: Compiling and executing native script...".to_string()));
+
+                            let engine = rhai::Engine::new();
+                            let start_time = Instant::now();
+                            
+                            match engine.eval::<rhai::Dynamic>(script) {
+                                Ok(result) => {
+                                    let result_str = result.to_string();
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Result -> {}", result_str)));
+                                    
+                                    let success_html = format!("
+                                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                            <h1 style='color:#ffcc00; text-shadow: 0 0 10px #ffcc0055;'>⚡ Rhai Native Execution Complete</h1>
+                                            <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #ffcc0011;'>
+                                                <p style='color:#888;'>Engine: <span style='color:#fff;'>Rhai Embedded Sandbox</span></p>
+                                                <p style='color:#888;'>Execution Time: <span style='color:#ffcc00;'>{} ms</span></p>
+                                                <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                
+                                                <div style='background:#000; border:1px solid #ffcc00; padding:20px; margin-top:10px;'>
+                                                    <span style='color:#888; font-size:10px;'>[INPUT SCRIPT]</span><br>
+                                                    <span style='color:#fff; font-size:14px;'>{}</span><br><br>
+                                                    <span style='color:#888; font-size:10px;'>[OUTPUT TERMINAL]</span><br>
+                                                    <span style='color:#ffcc00; font-size:18px; font-weight:bold;'>{}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ", start_time.elapsed().as_millis(), script, result_str);
+
+                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { 
+                                        html: success_html, 
+                                        url: "isobrowse://sandbox/rhai".to_string(), 
+                                        cpu_ms: start_time.elapsed().as_millis(),
+                                        ram_kb: 12, 
+                                        blocked_count: 0
+                                    });
+                                },
+                                Err(e) => {
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ERROR]: {}", e)));
+                                }
+                            }
+                            return;
+                        }
+
+                        // =========================================================
+                        // FETCH MOTORU (WASM YÜKLEYİCİ VE SANDBOX ÇALIŞTIRICI)
+                        // =========================================================
+                        if raw_url.starts_with("/fetch ") {
+                            let parts: Vec<&str> = raw_url.splitn(3, ' ').collect();
+                            let wasm_url = parts.get(1).unwrap_or(&"").to_string();
+                            let wasm_args = parts.get(2).unwrap_or(&"").to_string();
+
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [FETCH ENGINE]: Targeting payload at {}...", wasm_url)));
+                            
+                            match client.get(&wasm_url).send() {
+                                Ok(resp) => {
+                                    if let Ok(wasm_bytes) = resp.bytes() {
+                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [WASM]: {} bytes downloaded to RAM. Constructing Sandbox...", wasm_bytes.len())));
+                                        
+                                        let mut config = wasmtime::Config::new();
+                                        config.consume_fuel(true);
+                                        
+                                        if let Ok(engine) = wasmtime::Engine::new(&config) {
+                                            let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
+                                            let _ = preview1::add_to_linker_sync(&mut linker, |t| t);
+
+                                            let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
+                                            let stdout_pipe = wasmtime_wasi::pipe::MemoryOutputPipe::new(1024 * 1024);
+                                            builder.stdout(stdout_pipe.clone()); 
+                                            
+                                            let mut app_args = vec!["iso_app.wasm".to_string()];
+                                            app_args.extend(wasm_args.split_whitespace().map(|s| s.to_string()));
+                                            let _ = builder.args(&app_args);
+
+                                            let wasi = builder.build_p1();
+
+                                            let mut store = wasmtime::Store::new(&engine, wasi);
+                                            let _ = store.set_fuel(u64::MAX);
+
+                                            match wasmtime::Module::new(&engine, &wasm_bytes) {
+                                                Ok(module) => {
+                                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SYSTEM]: Sandbox sealed. Executing module...".to_string()));
+                                                    
+                                                    if let Ok(instance) = linker.instantiate(&mut store, &module) {
+                                                        
+                                                        let start_func = instance.get_typed_func::<(), ()>(&mut store, "_start")
+                                                            .unwrap_or_else(|_| instance.get_typed_func::<(), ()>(&mut store, "").unwrap());
+                                                        
+                                                        let _ = start_func.call(&mut store, ());
+
+                                                        let output_bytes = stdout_pipe.contents();
+                                                        let mut wasm_output = String::from_utf8_lossy(&output_bytes).to_string();
+                                                        
+                                                        wasm_output = wasm_output.trim().to_string();
+                                                        if wasm_output.is_empty() {
+                                                            wasm_output = "[No Output Generated]".to_string();
+                                                        }
+
+                                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("{}", wasm_output)));
+                                                        
+                                                        let success_html = format!("
+                                                            <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                                <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Sandbox Execution Complete</h1>
+                                                                <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #00ff4111;'>
+                                                                    <p style='color:#888;'>Target URL: <span style='color:#fff;'>{}</span></p>
+                                                                    <p style='color:#888;'>Payload Size: <span style='color:#ffcc00;'>{} bytes</span></p>
+                                                                    <p style='color:#888;'>Arguments: <span style='color:#fff;'>{}</span></p>
+                                                                    <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                                    
+                                                                    <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px;'>
+                                                                        <span style='color:#888; font-size:10px;'>[SANDBOX OUTPUT TERMINAL]</span><br><br>
+                                                                        <span style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ", wasm_url, wasm_bytes.len(), wasm_args, wasm_output);
+
+                                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { 
+                                                            html: success_html, 
+                                                            url: "isobrowse://sandbox/fetch".to_string(), 
+                                                            cpu_ms: start_time.elapsed().as_millis(),
+                                                            ram_kb: wasm_bytes.len() / 1024, 
+                                                            blocked_count: 0
+                                                        });
+                                                        return;
+                                                    }
+                                                },
+                                                Err(e) => {
+                                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: WASM Compilation failed: {}", e)));
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                Err(e) => {
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Fetch failed: {}", e)));
+                                }
+                            }
+                            return;
+                        }
+
+                        // =========================================================
+                        // TASK ENGINE (V.I.P BYPASS)
+                        // =========================================================
+                        if raw_url == "/news" || raw_url == "/crypto" || raw_url == "/game" {
                             let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [TASK ENGINE]: Intercepted intent '{}'. Synthesizing data...", raw_url)));
                             
                             let mut synthesized_html = String::new();
@@ -689,33 +868,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         synthesized_html.push_str("<li style='margin-bottom: 10px; font-size: 18px;'><strong style='color:#ffcc00;'>Solana</strong>: $145.20 <span style='color:#ff3366;font-size:12px;'>(Source: Offline Secure Cache)</span></li>");
                                     }
                                     synthesized_html.push_str("</ul>");
-
-                                } else if raw_url == "/gold" {
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Aggregating global commodities without site execution...".to_string()));
-                                    
-                                    synthesized_html.push_str("<h2 style='color: #fff; margin-top: 30px;'>🥇 Global Gold (XAU/USD) Aggregation</h2>");
-                                    synthesized_html.push_str("
-                                    <div style='display:flex; gap:20px; margin-top:20px;'>
-                                        <div style='flex:1; background:#111; padding:15px; border:1px solid #333;'>
-                                            <h3 style='color:#aaa; margin-top:0;'>Source: Bloomberg</h3>
-                                            <p style='font-size:24px; color:#ffcc00; margin:10px 0;'>$2,341.50</p>
-                                            <p style='color:#00ff41; font-size:12px;'>+0.45% (Aggregated)</p>
-                                        </div>
-                                        <div style='flex:1; background:#111; padding:15px; border:1px solid #333;'>
-                                            <h3 style='color:#aaa; margin-top:0;'>Source: Kitco</h3>
-                                            <p style='font-size:24px; color:#ffcc00; margin:10px 0;'>$2,340.90</p>
-                                            <p style='color:#00ff41; font-size:12px;'>+0.42% (Aggregated)</p>
-                                        </div>
-                                        <div style='flex:1; background:#111; padding:15px; border:1px solid #333;'>
-                                            <h3 style='color:#aaa; margin-top:0;'>Source: Yahoo Fin.</h3>
-                                            <p style='font-size:24px; color:#ffcc00; margin:10px 0;'>$2,342.10</p>
-                                            <p style='color:#00ff41; font-size:12px;'>+0.48% (Aggregated)</p>
-                                        </div>
-                                    </div>
-                                    <p style='margin-top:20px; color:#888; border-top: 1px dashed #333; padding-top: 10px;'>
-                                        🛡️ Data extracted securely without loading external trackers, ads, or JavaScript payloads.
-                                    </p>
-                                    ");
                                 }
 
                                 synthesized_html.push_str("</div></div>");
@@ -725,8 +877,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 document.addEventListener('click', function(e) {
                                     const target = e.target.closest('a');
                                     if (target) {
-                                        // MÜKEMMEL ÇÖZÜM: 'getAttribute' yerine doğrudan 'href' kullanıyoruz.
-                                        // Böylece tarayıcı göreceli (relative) linkleri mutlak (absolute) linke çeviriyor!
                                         let link = target.href; 
                                         if (link && !link.startsWith('javascript:') && !link.startsWith('#')) {
                                             e.preventDefault(); e.stopPropagation();
@@ -790,9 +940,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             return; 
                         }
 
+                        // =========================================================
+                        // NOJS PIPELINE (GÜVENLİ OKUMA/FİLTRE KOMUTU)
+                        // =========================================================
+                        let mut final_raw_url = raw_url.clone();
+                        if raw_url.starts_with("/nojs ") {
+                            let target_site = raw_url.strip_prefix("/nojs ").unwrap_or("").trim();
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [NOJS ENGINE]: Stripping JavaScript and sanitizing {}...", target_site)));
+                            final_raw_url = target_site.to_string();
+                        }
+
                         let _ = p_i.send_event(UserEvent::UpdateTerminal("> [RUST]: Tunneling to target page...".to_string()));
                         
-                        let fetch_url = if raw_url.starts_with("http") { raw_url.clone() } else if raw_url.starts_with("//") { format!("https:{}", raw_url) } else { format!("https://{}", raw_url) };
+                        let fetch_url = if final_raw_url.starts_with("http") { final_raw_url.clone() } else if final_raw_url.starts_with("//") { format!("https:{}", final_raw_url) } else { format!("https://{}", final_raw_url) };
+
 
                         let resp = match client.get(&fetch_url).send() {
                             Ok(r) => r,
@@ -1056,7 +1217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     html, body { overflow: auto !important; position: static !important; }
                     template, style, script, title, link, meta { display: none !important; opacity: 0 !important; visibility: hidden !important; }
 
-                    /* BBC GÖRSEL KORUMA */
+                    /* GÖRSEL KORUMA */
                     .iso-noscript { 
                         display: block !important; 
                         opacity: 1 !important; 
@@ -1080,8 +1241,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     document.addEventListener('click', function(e) {
                         const target = e.target.closest('a');
                         if (target) {
-                            // MÜKEMMEL ÇÖZÜM: 'getAttribute' yerine doğrudan 'href' kullanıyoruz.
-                            // Böylece tarayıcı göreceli (relative) linkleri mutlak (absolute) linke çeviriyor!
                             let link = target.href; 
                             if (link && !link.startsWith('javascript:') && !link.startsWith('#')) {
                                 e.preventDefault(); e.stopPropagation();
