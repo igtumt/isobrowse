@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     
-    // İşletim Sistemi (OS) Telemetri Motoru
+    // Operating System (OS) Telemetry Engine
     let telemetry_proxy = proxy.clone();
     thread::spawn(move || {
         let mut sys = System::new_all();
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     
-    // Güvenli Web İstek Motoru (Kalkanlı User-Agent)
+    // Secure Web Request Engine (Shielded User-Agent)
     let http_client = Arc::new(
         reqwest::blocking::Client::builder()
             .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15")
@@ -56,10 +56,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build(&event_loop)?;
 
     // ==========================================
-    // ÇEKİRDEK JAVASCRIPT / ARAYÜZ MOTORU
+    // CORE JAVASCRIPT / UI ENGINE
     // ==========================================
     let init_script = r##"
-        // MAC OS CMD+C / CMD+A VE GENEL KLAVYE ÇÖKME KALKANI
+        // MAC OS CMD+C / CMD+A AND GENERAL KEYBOARD CRASH SHIELD
         document.addEventListener('keydown', function(e) {
             let host = document.getElementById('isobrowse-shadow-host');
             let active = host ? host.shadowRoot.activeElement : null;
@@ -143,11 +143,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if (window.location.hostname.includes('captive.apple.com')) {
                     
-                    // ANA VİTRİN VE LOGO (Saf JavaScript / Kusursuz Tasarım)
+                    // MAIN SHOWCASE AND LOGO
                     let w_html = `
                         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace;">
                             <h1 style="color: #00ccff; text-shadow: 0 0 10px #00ccff55; font-size: 36px; margin-bottom: 5px;">⚡ IsoBrowse Runtime</h1>
-                            <p style="color: #888; margin-top: 0;">The Programmable, Zero-Trust Web Pipeline (v1.0 MVP)</p>
+                            <p style="color: #888; margin-top: 0;">The Programmable, Local Web Pipeline (v1.0 MVP)</p>
                             
                             <p style="color: #aaa; margin: 20px 0 30px 0; max-width: 600px; text-align: center;">
                                 System initialized. OS Kernel telemetry hooked. You are currently in a secure execution environment.
@@ -157,20 +157,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     w_html += '<div style="color: #ccc; text-align: left; background: #111; padding: 20px; border: 1px dashed #333; display: inline-block; width: 100%; max-width: 800px; box-sizing: border-box; font-weight: normal;">';
                     w_html += '<p style="margin-top:0; color:#fff; font-weight:bold; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:15px;">LOCAL WORKSPACE & DECENTRALIZED MODULES:</p>';
                     
-                    // GRUP 1: İNTERNET VERİSİ VE FİLTRELEME (MAVİ)
+                    // GROUP 1: INTERNET DATA AND FILTERING (BLUE)
                     w_html += '<p title="Info: In Mod 1 (Surf), all standard URL navigations automatically use the /nojs pipeline by default."><strong style="color: #00ccff; font-weight:bold; cursor:help;">/nojs</strong>   - Strips JavaScript and trackers from any target URL. ℹ️</p>';
                     w_html += '<p><strong style="color: #00ccff; font-weight:bold;">/news</strong>   - Aggregates global news securely.</p>';
                     w_html += '<p><strong style="color: #00ccff; font-weight:bold;">/crypto</strong> - Live market telemetry.</p>';
                     
                     w_html += '<div style="height:10px;"></div>';
                     
-                    // GRUP 2: LOKAL İŞLEMCİ VE MOTOR (SARI)
+                    // GROUP 2: LOCAL PROCESSOR AND ENGINE (YELLOW)
                     w_html += '<p><strong style="color: #ffcc00; font-weight:bold;">/game</strong>   - Local WASM execution test (Retro Snake).</p>';
                     w_html += '<p title="Ex 1: /rhai let x = 50; let y = 4; x * y&#10;Ex 2: /rhai let name = \'Hacker\'; \'Hello \' + name"><strong style="color: #ffcc00; font-weight:bold; cursor:help;">/rhai</strong>   - Executes native code. <span style="color:#888; font-size:10px;">(A fast JS/Rust-like language)</span> ℹ️ <span style="color:#00ff41; cursor:pointer; text-decoration:underline;" onclick="window.open(\'https://rhai.rs/book/language/\', \'_blank\')">[Syntax Guide]</span></p>';
 
                     w_html += '<div style="height:10px;"></div>';
 
-                    // GRUP 3: HARİCİ UYGULAMA İNDİRME VE SANDBOX (TURUNCU)
+                    // GROUP 3: EXTERNAL APP DOWNLOAD AND SANDBOX (ORANGE)
                     w_html += '<p style="margin-top:10px;"><strong style="color: #ff9900; font-weight:bold;">/fetch</strong>  - Downloads and executes remote WASM payloads securely in RAM.</p>';
                     w_html += '<p title="Ex: /read ~/Desktop/data.txt"><strong style="color: #ff9900; font-weight:bold; cursor:help;">/read</strong>   - Reads a local file securely into the execution pipeline. ℹ️</p>';
                     w_html += '<p style="color:#aaa; font-size:11px; margin-top:8px; border-left:2px solid #00ff41; padding-left:10px;">⚡ PRO TIP: Chain commands with the pipe ( | ) operator. Ex: <span style="color:#00ff41;">/read ~/file.txt | /fetch analyzer.wasm</span></p>';
@@ -518,7 +518,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let raw_input = raw_url.trim();
 
                         // =========================================================
-                        // 1. PIPELINE ENGINE (/read, /fetch, /rhai zincirleme boru hattı)
+                        // 1. PIPELINE ENGINE (/read, /fetch, /rhai chained pipeline)
                         // =========================================================
                         if raw_input.starts_with("/fetch ") || raw_input.starts_with("/rhai ") || raw_input.starts_with("/read ") {
                             let commands: Vec<&str> = raw_input.split('|').collect();
@@ -569,8 +569,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let engine = rhai::Engine::new();
                                     let mut scope = rhai::Scope::new();
                                     
-                                    // 🚀 SİHİR BURADA: Bir önceki boru hattından (pipe) gelen veriyi, 
-                                    // Rhai motoruna "pipe_data" adında bir yerel değişken olarak enjekte ediyoruz!
+                                    // THE MAGIC: We inject the data from the pipeline into Rhai as a local variable named "pipe_data".
                                     if index > 0 && !pipe_data.is_empty() {
                                         scope.push("pipe_data", pipe_data.clone());
                                     }
@@ -608,7 +607,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                 } else if cmd.starts_with("/fetch ") {
                                     
-                                    // WASM Fetch için önceki adımdan gelen veriyi komutun sonuna metin argümanı olarak ekliyoruz
+                                    // If there is data from the previous process in the pipeline, add it as an argument
                                     if index > 0 && !pipe_data.is_empty() {
                                         cmd = format!("{} \"{}\"", cmd, pipe_data.replace("\"", "\\\""));
                                     }
@@ -702,11 +701,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     break;
                                 }
                             }
-                            return; // Boru hattı işini bitirdi, normal sörfe geçmeden thread'i kapat.
+                            return; // The pipeline has finished its job, close the thread before going to normal surf.
                         }
 
                         // =========================================================
-                        // 2. TASK ENGINE (V.I.P BYPASS - Sabit Görevler)
+                        // 2. TASK ENGINE (V.I.P BYPASS - Static Tasks)
                         // =========================================================
                         if raw_input == "/news" || raw_input == "/crypto" || raw_input == "/game" {
                             let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [TASK ENGINE]: Intercepted intent '{}'. Synthesizing data...", raw_input)));
@@ -985,7 +984,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // =========================================================
-                        // 3. NOJS PIPELINE (GÜVENLİ OKUMA/FİLTRE KOMUTU)
+                        // 3. NOJS PIPELINE (SECURE READ/FILTER COMMAND)
                         // =========================================================
                         let mut final_raw_url = raw_input.to_string();
                         if raw_input.starts_with("/nojs ") {
@@ -1239,7 +1238,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::UserEvent(UserEvent::WasmSurfRender { html, url, cpu_ms, ram_kb, blocked_count }) => {
                 
                 let fallback_css = "<style>
-                    /* REKLAM VE ÇÖP KUTUSU YOK EDİCİSİ */
+                    /* AD AND GARBAGE DESTROYER */
                     .ad, .ads, .ad-slot, .ad-container, [id^='ad-'], [class^='ad-'],
                     [class*='taboola'], [class*='outbrain'],
                     [class*='popup'], [id*='popup'], [class*='modal'], [id*='modal'],
@@ -1261,7 +1260,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     html, body { overflow: auto !important; position: static !important; }
                     template, style, script, title, link, meta { display: none !important; opacity: 0 !important; visibility: hidden !important; }
 
-                    /* GÖRSEL KORUMA */
+                    /* VISUAL PROTECTION */
                     .iso-noscript { 
                         display: block !important; 
                         opacity: 1 !important; 
@@ -1275,7 +1274,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         display: block !important;
                     }
 
-                    /* 💥 SURF İMLECİ VE KALKANI 💥 */
+                    /* 💥 SURF CURSOR AND SHIELD 💥 */
                     html, body, * {
                         cursor: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20' font-size='20'>🏄</text></svg>\"), auto !important;
                     }
