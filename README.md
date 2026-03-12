@@ -40,7 +40,8 @@ Bring the philosophy of Unix pipes directly to the web browser. You can securely
 * **Zero-Upload Execution:** `/read` pulls your local file securely into RAM.
 * **Composable Web:** The `|` operator feeds the output (`pipe_data`) of one task into the input of the next.
 
-![WASM Pipe Command](assets/Pipe_v1_0_2.gif)
+<img src="assets/Pipe_v1_0_2.gif" width="100%" alt="WASM Pipe Command">
+
 We select the critical text in our desktop file and write in UI. 
 > /read ~/Desktop/server.log | /rhai let res=""; let lines=pipe_data.split("\n"); for x in lines { if x.index_of("CRITICAL") != -1 { res += x + "\n"; } } res
 
@@ -53,8 +54,7 @@ Why download and install apps when you can fetch them securely into RAM? IsoBrow
 ```text
 > /fetch https://raw.githubusercontent.com/igtumt/isomodules/main/magic8.wasm "ASK A QUESTION!"
 ```
-
-![WASM Fetch Command2](assets/fetch_v1_0_2.gif)
+<img src="assets/fetch_v1_0_2.gif" width="100%" alt="WASM fetch Command">
 
 * **Direct to RAM:** The `.wasm` binary is fetched directly from the internet.
 * **Sandbox:** Executed within a WASI P1 sandbox. The app cannot access your local files or network. Output is piped directly back to the IsoBrowse Terminal UI.
@@ -66,7 +66,7 @@ Need to run quick logic without fetching external WASM? Write and execute code d
 > /rhai let x = 50; let y = 4; x * y
 ```
 
-![WASM Rhai Command](assets/rhai_v1_0_2.gif)
+<img src="assets/rhai_v1_0_2.gif" width="100%" alt="WASM fetch Command">
 
 *Executes natively in < 6ms without relying on external web servers or slow JavaScript V8 engines.*
 
