@@ -166,14 +166,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     
                     // GRUP 2: LOKAL İŞLEMCİ VE MOTOR (SARI)
                     w_html += '<p><strong style="color: #ffcc00; font-weight:bold;">/game</strong>   - Local WASM execution test (Retro Snake).</p>';
-                    
-                    // RHAI (Gizli Örnekler / Hover Tooltip)
                     w_html += '<p title="Ex 1: /rhai let x = 50; let y = 4; x * y&#10;Ex 2: /rhai let name = \'Hacker\'; \'Hello \' + name"><strong style="color: #ffcc00; font-weight:bold; cursor:help;">/rhai</strong>   - Executes native code. <span style="color:#888; font-size:10px;">(A fast JS/Rust-like language)</span> ℹ️ <span style="color:#00ff41; cursor:pointer; text-decoration:underline;" onclick="window.open(\'https://rhai.rs/book/language/\', \'_blank\')">[Syntax Guide]</span></p>';
 
                     w_html += '<div style="height:10px;"></div>';
 
                     // GRUP 3: HARİCİ UYGULAMA İNDİRME VE SANDBOX (TURUNCU)
                     w_html += '<p style="margin-top:10px;"><strong style="color: #ff9900; font-weight:bold;">/fetch</strong>  - Downloads and executes remote WASM payloads securely in RAM.</p>';
+                    w_html += '<p title="Ex: /read ~/Desktop/data.txt"><strong style="color: #ff9900; font-weight:bold; cursor:help;">/read</strong>   - Reads a local file securely into the execution pipeline. ℹ️</p>';
+                    w_html += '<p style="color:#aaa; font-size:11px; margin-top:8px; border-left:2px solid #00ff41; padding-left:10px;">⚡ PRO TIP: Chain commands with the pipe ( | ) operator. Ex: <span style="color:#00ff41;">/read ~/file.txt | /fetch analyzer.wasm</span></p>';
                     
                     w_html += '</div>';
                     w_html += '<p class="iso-alarm-active" style="color: #ff3366; margin-top: 30px;">> Awaiting instructions...</p>';
@@ -247,7 +247,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             <button id="iso-back"><</button>
                             <button id="iso-fwd">></button>
                             <button id="iso-home" style="color:#00ccff; border-color:#00ccff;">HOME</button>
-                            <input id="iso-url" type="text" value="${displayUrl}" placeholder="Enter URL or try tasks: /news, /crypto, /game">
+                            <input id="iso-url" type="text" value="${displayUrl}" placeholder="Enter URL or try tasks: /news, /fetch, /read, /rhai">
                             <button id="iso-go">RUN</button>
                         </div>
                         <div class="gap5">
@@ -515,161 +515,205 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     
                     thread::spawn(move || {
                         let start_time = Instant::now();
+                        let raw_input = raw_url.trim();
 
                         // =========================================================
-                        // RHAI ENGINE (DAHİLİ KOD/BETİK ÇALIŞTIRICI)
+                        // 1. PIPELINE ENGINE (/read, /fetch, /rhai zincirleme boru hattı)
                         // =========================================================
-                        if raw_url.starts_with("/rhai ") {
-                            let script = raw_url.strip_prefix("/rhai ").unwrap_or("").trim();
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal("> [RHAI ENGINE]: Compiling and executing native script...".to_string()));
+                        if raw_input.starts_with("/fetch ") || raw_input.starts_with("/rhai ") || raw_input.starts_with("/read ") {
+                            let commands: Vec<&str> = raw_input.split('|').collect();
+                            let mut pipe_data = String::new();
+                            let total_commands = commands.len();
+                            let mut final_ram_kb = 0;
 
-                            let engine = rhai::Engine::new();
-                            let start_time = Instant::now();
-                            
-                            match engine.eval::<rhai::Dynamic>(script) {
-                                Ok(result) => {
-                                    let result_str = result.to_string();
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Result -> {}", result_str)));
-                                    
-                                    let success_html = format!("
-                                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
-                                            <h1 style='color:#ffcc00; text-shadow: 0 0 10px #ffcc0055;'>⚡ Rhai Native Execution Complete</h1>
-                                            <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #ffcc0011;'>
-                                                <p style='color:#888;'>Engine: <span style='color:#fff;'>Rhai Embedded Sandbox</span></p>
-                                                <p style='color:#888;'>Execution Time: <span style='color:#ffcc00;'>{} ms</span></p>
-                                                <hr style='border:1px dashed #333; margin:15px 0;'>
-                                                
-                                                <div style='background:#000; border:1px solid #ffcc00; padding:20px; margin-top:10px;'>
-                                                    <span style='color:#888; font-size:10px;'>[INPUT SCRIPT]</span><br>
-                                                    <span style='color:#fff; font-size:14px;'>{}</span><br><br>
-                                                    <span style='color:#888; font-size:10px;'>[OUTPUT TERMINAL]</span><br>
-                                                    <span style='color:#ffcc00; font-size:18px; font-weight:bold;'>{}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ", start_time.elapsed().as_millis(), script, result_str);
+                            for (index, part) in commands.iter().enumerate() {
+                                let mut cmd = part.trim().to_string();
+                                let is_last = index == total_commands - 1;
 
-                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { 
-                                        html: success_html, 
-                                        url: "isobrowse://sandbox/rhai".to_string(), 
-                                        cpu_ms: start_time.elapsed().as_millis(),
-                                        ram_kb: 12, 
-                                        blocked_count: 0
-                                    });
-                                },
-                                Err(e) => {
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ERROR]: {}", e)));
-                                }
-                            }
-                            return;
-                        }
+                                if cmd.starts_with("/read ") {
+                                    let path = cmd.strip_prefix("/read ").unwrap_or("").trim().trim_matches('"');
+                                    let expanded_path = path.replace("~", &std::env::var("HOME").unwrap_or_default());
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [LOCAL READ]: Accessing {}...", expanded_path)));
 
-                        // =========================================================
-                        // FETCH MOTORU (WASM YÜKLEYİCİ VE SANDBOX ÇALIŞTIRICI)
-                        // =========================================================
-                        if raw_url.starts_with("/fetch ") {
-                            let parts: Vec<&str> = raw_url.splitn(3, ' ').collect();
-                            let wasm_url = parts.get(1).unwrap_or(&"").to_string();
-                            let wasm_args = parts.get(2).unwrap_or(&"").to_string();
-
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [FETCH ENGINE]: Targeting payload at {}...", wasm_url)));
-                            
-                            match client.get(&wasm_url).send() {
-                                Ok(resp) => {
-                                    if let Ok(wasm_bytes) = resp.bytes() {
-                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [WASM]: {} bytes downloaded to RAM. Constructing Sandbox...", wasm_bytes.len())));
-                                        
-                                        let mut config = wasmtime::Config::new();
-                                        config.consume_fuel(true);
-                                        
-                                        if let Ok(engine) = wasmtime::Engine::new(&config) {
-                                            let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
-                                            let _ = preview1::add_to_linker_sync(&mut linker, |t| t);
-
-                                            let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
-                                            let stdout_pipe = wasmtime_wasi::pipe::MemoryOutputPipe::new(1024 * 1024);
-                                            builder.stdout(stdout_pipe.clone()); 
-                                            
-                                            let mut app_args = vec!["iso_app.wasm".to_string()];
-                                            app_args.extend(wasm_args.split_whitespace().map(|s| s.to_string()));
-                                            let _ = builder.args(&app_args);
-
-                                            let wasi = builder.build_p1();
-
-                                            let mut store = wasmtime::Store::new(&engine, wasi);
-                                            let _ = store.set_fuel(u64::MAX);
-
-                                            match wasmtime::Module::new(&engine, &wasm_bytes) {
-                                                Ok(module) => {
-                                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SYSTEM]: Sandbox sealed. Executing module...".to_string()));
-                                                    
-                                                    if let Ok(instance) = linker.instantiate(&mut store, &module) {
-                                                        
-                                                        let start_func = instance.get_typed_func::<(), ()>(&mut store, "_start")
-                                                            .unwrap_or_else(|_| instance.get_typed_func::<(), ()>(&mut store, "").unwrap());
-                                                        
-                                                        let _ = start_func.call(&mut store, ());
-
-                                                        let output_bytes = stdout_pipe.contents();
-                                                        let mut wasm_output = String::from_utf8_lossy(&output_bytes).to_string();
-                                                        
-                                                        wasm_output = wasm_output.trim().to_string();
-                                                        if wasm_output.is_empty() {
-                                                            wasm_output = "[No Output Generated]".to_string();
-                                                        }
-
-                                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("{}", wasm_output)));
-                                                        
-                                                        let success_html = format!("
-                                                            <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
-                                                                <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Sandbox Execution Complete</h1>
-                                                                <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #00ff4111;'>
-                                                                    <p style='color:#888;'>Target URL: <span style='color:#fff;'>{}</span></p>
-                                                                    <p style='color:#888;'>Payload Size: <span style='color:#ffcc00;'>{} bytes</span></p>
-                                                                    <p style='color:#888;'>Arguments: <span style='color:#fff;'>{}</span></p>
-                                                                    <hr style='border:1px dashed #333; margin:15px 0;'>
-                                                                    
-                                                                    <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px;'>
-                                                                        <span style='color:#888; font-size:10px;'>[SANDBOX OUTPUT TERMINAL]</span><br><br>
-                                                                        <span style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</span>
-                                                                    </div>
-                                                                </div>
+                                    match std::fs::read_to_string(&expanded_path) {
+                                        Ok(content) => {
+                                            pipe_data = content.trim().to_string();
+                                            final_ram_kb += pipe_data.len() / 1024;
+                                            if is_last {
+                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Pipeline Complete.")));
+                                                let success_html = format!("
+                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                        <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Local File Access Complete</h1>
+                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #00ff4111;'>
+                                                            <p style='color:#888;'>Target: <span style='color:#fff;'>{}</span></p>
+                                                            <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                            <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
+                                                                <span style='color:#888; font-size:10px;'>[FILE CONTENTS]</span><br><br>
+                                                                <span style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</span>
                                                             </div>
-                                                        ", wasm_url, wasm_bytes.len(), wasm_args, wasm_output);
-
-                                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { 
-                                                            html: success_html, 
-                                                            url: "isobrowse://sandbox/fetch".to_string(), 
-                                                            cpu_ms: start_time.elapsed().as_millis(),
-                                                            ram_kb: wasm_bytes.len() / 1024, 
-                                                            blocked_count: 0
-                                                        });
-                                                        return;
-                                                    }
-                                                },
-                                                Err(e) => {
-                                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: WASM Compilation failed: {}", e)));
-                                                }
+                                                        </div>
+                                                    </div>
+                                                ", expanded_path, pipe_data);
+                                                let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/read".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
                                             }
+                                        },
+                                        Err(e) => {
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Read failed: {}", e)));
+                                            break;
                                         }
                                     }
-                                },
-                                Err(e) => {
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Fetch failed: {}", e)));
+                                } else if cmd.starts_with("/rhai ") {
+                                    let script = cmd.strip_prefix("/rhai ").unwrap_or("").trim();
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Executing step {}/{}...", index + 1, total_commands)));
+
+                                    let engine = rhai::Engine::new();
+                                    let mut scope = rhai::Scope::new();
+                                    
+                                    // 🚀 SİHİR BURADA: Bir önceki boru hattından (pipe) gelen veriyi, 
+                                    // Rhai motoruna "pipe_data" adında bir yerel değişken olarak enjekte ediyoruz!
+                                    if index > 0 && !pipe_data.is_empty() {
+                                        scope.push("pipe_data", pipe_data.clone());
+                                    }
+
+                                    let step_time = Instant::now();
+
+                                    match engine.eval_with_scope::<rhai::Dynamic>(&mut scope, script) {
+                                        Ok(result) => {
+                                            pipe_data = result.to_string();
+                                            if is_last {
+                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Result -> {}", pipe_data)));
+                                                let success_html = format!("
+                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                        <h1 style='color:#ffcc00; text-shadow: 0 0 10px #ffcc0055;'>⚡ Rhai Native Execution Complete</h1>
+                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #ffcc0011;'>
+                                                            <p style='color:#888;'>Engine: <span style='color:#fff;'>Rhai Embedded Sandbox</span></p>
+                                                            <p style='color:#888;'>Execution Time: <span style='color:#ffcc00;'>{} ms</span></p>
+                                                            <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                            <div style='background:#000; border:1px solid #ffcc00; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
+                                                                <span style='color:#888; font-size:10px;'>[INPUT SCRIPT]</span><br>
+                                                                <span style='color:#fff; font-size:14px;'>{}</span><br><br>
+                                                                <span style='color:#888; font-size:10px;'>[PIPELINE OUTPUT TERMINAL]</span><br>
+                                                                <span style='color:#ffcc00; font-size:18px; font-weight:bold; white-space: pre-wrap;'>{}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ", step_time.elapsed().as_millis(), script, pipe_data);
+                                                let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/rhai".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: 12, blocked_count: 0 });
+                                            }
+                                        },
+                                        Err(e) => {
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ERROR]: {}", e)));
+                                            break;
+                                        }
+                                    }
+                                } else if cmd.starts_with("/fetch ") {
+                                    
+                                    // WASM Fetch için önceki adımdan gelen veriyi komutun sonuna metin argümanı olarak ekliyoruz
+                                    if index > 0 && !pipe_data.is_empty() {
+                                        cmd = format!("{} \"{}\"", cmd, pipe_data.replace("\"", "\\\""));
+                                    }
+                                    
+                                    let parts: Vec<&str> = cmd.splitn(3, ' ').collect();
+                                    let wasm_url = parts.get(1).unwrap_or(&"").to_string();
+                                    let wasm_args = parts.get(2).unwrap_or(&"").to_string();
+
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [FETCH ENGINE]: Targeting payload at {}...", wasm_url)));
+
+                                    match client.get(&wasm_url).send() {
+                                        Ok(resp) => {
+                                            if let Ok(wasm_bytes) = resp.bytes() {
+                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [WASM]: {} bytes downloaded. Executing step {}/{}...", wasm_bytes.len(), index + 1, total_commands)));
+                                                final_ram_kb += wasm_bytes.len() / 1024;
+
+                                                let mut config = wasmtime::Config::new();
+                                                config.consume_fuel(true);
+
+                                                if let Ok(engine) = wasmtime::Engine::new(&config) {
+                                                    let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
+                                                    let _ = preview1::add_to_linker_sync(&mut linker, |t| t);
+
+                                                    let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
+                                                    let stdout_pipe = wasmtime_wasi::pipe::MemoryOutputPipe::new(1024 * 1024);
+                                                    builder.stdout(stdout_pipe.clone());
+
+                                                    let mut app_args = vec!["iso_app.wasm".to_string()];
+                                                    app_args.extend(wasm_args.split_whitespace().map(|s| s.to_string()));
+                                                    let _ = builder.args(&app_args);
+
+                                                    let wasi = builder.build_p1();
+                                                    let mut store = wasmtime::Store::new(&engine, wasi);
+                                                    let _ = store.set_fuel(u64::MAX);
+
+                                                    match wasmtime::Module::new(&engine, &wasm_bytes) {
+                                                        Ok(module) => {
+                                                            if let Ok(instance) = linker.instantiate(&mut store, &module) {
+                                                                let start_func = instance.get_typed_func::<(), ()>(&mut store, "_start")
+                                                                    .unwrap_or_else(|_| instance.get_typed_func::<(), ()>(&mut store, "").unwrap());
+
+                                                                let _ = start_func.call(&mut store, ());
+
+                                                                let output_bytes = stdout_pipe.contents();
+                                                                let mut wasm_output = String::from_utf8_lossy(&output_bytes).to_string();
+
+                                                                wasm_output = wasm_output.trim().to_string();
+                                                                if wasm_output.is_empty() {
+                                                                    wasm_output = "[No Output Generated]".to_string();
+                                                                }
+
+                                                                pipe_data = wasm_output;
+
+                                                                if is_last {
+                                                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Pipeline Sandbox Execution Complete.")));
+                                                                    let success_html = format!("
+                                                                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                                            <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Sandbox Execution Complete</h1>
+                                                                            <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #00ff4111;'>
+                                                                                <p style='color:#888;'>Pipeline Target: <span style='color:#fff;'>{}</span></p>
+                                                                                <p style='color:#888;'>Payload Size: <span style='color:#ffcc00;'>{} bytes</span></p>
+                                                                                <p style='color:#888;'>Arguments Passed: <span style='color:#fff;'>{}</span></p>
+                                                                                <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                                                <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
+                                                                                    <span style='color:#888; font-size:10px;'>[PIPELINE FINAL OUTPUT]</span><br><br>
+                                                                                    <span style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ", wasm_url, wasm_bytes.len(), wasm_args, pipe_data);
+
+                                                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/pipeline".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
+                                                                }
+                                                            }
+                                                        },
+                                                        Err(e) => {
+                                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: WASM Compilation failed: {}", e)));
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        Err(e) => {
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Fetch failed: {}", e)));
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Unknown pipeline command: {}", cmd)));
+                                    break;
                                 }
                             }
-                            return;
+                            return; // Boru hattı işini bitirdi, normal sörfe geçmeden thread'i kapat.
                         }
 
                         // =========================================================
-                        // TASK ENGINE (V.I.P BYPASS)
+                        // 2. TASK ENGINE (V.I.P BYPASS - Sabit Görevler)
                         // =========================================================
-                        if raw_url == "/news" || raw_url == "/crypto" || raw_url == "/game" {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [TASK ENGINE]: Intercepted intent '{}'. Synthesizing data...", raw_url)));
+                        if raw_input == "/news" || raw_input == "/crypto" || raw_input == "/game" {
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [TASK ENGINE]: Intercepted intent '{}'. Synthesizing data...", raw_input)));
                             
                             let mut synthesized_html = String::new();
                             
-                            if raw_url == "/game" {
+                            if raw_input == "/game" {
                                 let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Booting local WASM gaming environment...".to_string()));
                                 synthesized_html.push_str(r#"
                                     <style>
@@ -775,9 +819,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         <div style='border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff4122; background: #0a0a0a;'>
                                             <h1 style='color: #00ccff; border-bottom: 2px solid #00ccff; padding-bottom: 10px; margin-top: 0;'>⚡ IsoBrowse Pipeline: Task Engine</h1>
                                             <p style='color: #888; font-size: 14px;'>Target intent: <strong style='color:#fff;'>{}</strong><br>Status: Aggregated, sanitized, and isolated without WASM parsing.</p>
-                                ", raw_url));
+                                ", raw_input));
 
-                                if raw_url == "/news" {
+                                if raw_input == "/news" {
                                     let mut news_count = 0;
                                     let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Scraping Source 1 (NPR News)...".to_string()));
                                     
@@ -841,7 +885,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                     synthesized_html.push_str("</ul>");
 
-                                } else if raw_url == "/crypto" {
+                                } else if raw_input == "/crypto" {
                                     let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Fetching market telemetry...".to_string()));
                                     let mut crypto_count = 0;
                                     
@@ -925,9 +969,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "#;
                             synthesized_html.push_str(interceptor);
 
-                            let final_url = format!("isobrowse://task{}", raw_url);
+                            let final_url = format!("isobrowse://task{}", raw_input);
                             let ram_footprint = synthesized_html.len() / 1024;
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Task {} executed. Rendering directly securely...", raw_url)));
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Task {} executed. Rendering directly securely...", raw_input)));
                             
                             let _ = p_i.send_event(UserEvent::WasmSurfRender { 
                                 html: synthesized_html, 
@@ -941,11 +985,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // =========================================================
-                        // NOJS PIPELINE (GÜVENLİ OKUMA/FİLTRE KOMUTU)
+                        // 3. NOJS PIPELINE (GÜVENLİ OKUMA/FİLTRE KOMUTU)
                         // =========================================================
-                        let mut final_raw_url = raw_url.clone();
-                        if raw_url.starts_with("/nojs ") {
-                            let target_site = raw_url.strip_prefix("/nojs ").unwrap_or("").trim();
+                        let mut final_raw_url = raw_input.to_string();
+                        if raw_input.starts_with("/nojs ") {
+                            let target_site = raw_input.strip_prefix("/nojs ").unwrap_or("").trim();
                             let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [NOJS ENGINE]: Stripping JavaScript and sanitizing {}...", target_site)));
                             final_raw_url = target_site.to_string();
                         }
