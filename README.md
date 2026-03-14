@@ -1,10 +1,19 @@
 # ⚡ IsoBrowse MVP: The Experimental Programmable Web & Local Runtime
 
-**Take back control of the web. IsoBrowse is not just a browser; it's a programmable, experimental execution environment. A paradigm shift in web architecture? Passive users will become active in the future?**
+**IsoBrowse is not just a browser — it is a programmable execution environment for the web and local data.**
 
-IsoBrowse is an experimental Runtime Platform.
+IsoBrowse is an experimental web runtime that turns the browser address bar into a command-driven interface. Instead of simply rendering websites, IsoBrowse treats the web as raw data that flows through controlled runtimes, sandbox environments, and IsoModules pipelines.
 
-Instead of simply rendering websites, IsoBrowse processes the web through controlled runtimes, sandbox environments, and task pipelines. Stop trusting the web blindly. IsoBrowse treats web surfing as a controlled execution task, allowing you to intercept payloads, execute remote WebAssembly modules securely, and run native scripts directly from the address bar.
+Modern browsers execute large amounts of untrusted JavaScript by default. IsoBrowse flips this model. 
+
+Instead of blindly executing websites, IsoBrowse processes web content through secure runtimes and modular pipelines where the user remains in absolute control.
+
+**In IsoBrowse:**
+* Web pages become inputs.
+* Modules become tools.
+* The browser becomes a programmable runtime.
+
+This allows users to intercept payloads, execute sandboxed WebAssembly modules, and run native scripts directly from the address bar — transforming web browsing into a transparent and fully programmable experience.
 
 ---
 
@@ -18,11 +27,27 @@ Instead of simply rendering websites, IsoBrowse processes the web through contro
 <br>
 <em>Executing a dynamic remote WebAssembly payload directly from a GitHub raw link into RAM.</em>
 
+## 💻 Example Session
+
+```text
+> /nojs https://news.ycombinator.com
+Rendering clean page...
+
+> /rhai 40 + 2
+42
+
+> /read s~/Desktop/server.log | /rhai pipe_data.len()
+1543
+
+> /fetch https://raw.githubusercontent.com/igtumt/isomodules/main/calc.wasm 5 x 6
+30
+```
+
 ---
 
-## 🌍 The Vision: A Browser as a Terminal and more!
+## 🌍 The Vision: A Browser as a Terminal
 
-Modern browsers have become massive, bloated operating systems that let websites run thousands of lines of hidden JavaScript, draining your CPU and RAM. 
+Modern browsers have become massive operating systems that let websites run thousands of lines of hidden JavaScript, draining your CPU and RAM. 
 
 **Normal Browsers:**
 `URL` ➔ `HTML` ➔ `JS Execute` ➔ `Render`
@@ -30,93 +55,109 @@ Modern browsers have become massive, bloated operating systems that let websites
 **IsoBrowse Architecture:**
 `Sources (Web/Local Data)` ➔ `IsoBrowse Runtime` ➔ `Pipeline Execution` ➔ `UI / Render`
 
-IsoBrowse changes the rules. It turns the traditional "Address Bar" into a **Command-Driven Terminal**. You don't just visit URLs; you execute pipelines and modules. IsoBrowse unifies web browsing, local scripting, and sandboxed WebAssembly into a single programmable environment.
+IsoBrowse changes the rules. It turns the traditional "Address Bar" into a **Command-Driven Terminal**. You don't just visit URLs; you execute pipelines and modules. 
+
+**IsoBrowse combines a web browser, a WASM runtime, Unix pipelines, local scripting, and a decentralized IsoModules Store.**
+
+### 📦 The IsoModules Ecosystem
+
+IsoBrowse is built around **IsoModules** — sandboxed WebAssembly applications that run inside the IsoBrowse runtime.
+
+Developers can build tools in **Rust, C, or Zig**, compile them to WASM, and publish them to any public repository.  
+Users can fetch and execute these modules instantly without installation.
+
+IsoModules transform the browser into a **modular execution platform** where web data, local files, and remote modules can be combined through pipelines.
+
+---
+
+### Built-in IsoModules (MVP)
+
+IsoBrowse ships with a few native modules to demonstrate the system:
+
+* `/nojs <url>` — renders a clean version of any webpage by stripping JavaScript and trackers.
+* `/news` — fetches and aggregates global news.
+* `/crypto` — displays live cryptocurrency telemetry.
+* `/game` — launches a local offline Cyber-Snake game.
+
+---
+
+### Fetchable IsoModules
+
+Developers can distribute modules as standalone `.wasm` binaries.  
+Users can fetch and execute them directly from the address bar:
+
+```text
+> /fetch https://raw.githubusercontent.com/igtumt/isomodules/main/magic8.wasm "ASK A QUESTION!"
+```
+
+https://github.com/user-attachments/assets/89bd418f-2d31-4ee3-93bc-42df948fedb3
+
+* **Direct to RAM:** The `.wasm` binary is fetched directly from the internet.
+* **Sandbox:** Executed within a WASI P1 sandbox. The app cannot access your local files or network.
+
+
+### ⚡ The Native Engine (`/rhai`)
+Write and execute code directly inside the browser using the embedded **Rhai Engine** (a fast scripting language).
+
+```text
+> /rhai let x = 50; let y = 4; x * y
+```
+
+https://github.com/user-attachments/assets/9ae60d6b-fd24-4cb8-b604-f870980c08a8
+
 
 ### 📂 Local File Access (`/read`)
-Securely read local data directly into the execution sandbox without uploading it to any external server. Your data stays purely in your local RAM.
+Securely read local data directly into the execution sandbox. Your data stays purely in your local RAM.
 
 ```text
 > /read ~/Desktop/server.log
 ```
 
 ### 🔗 The Pipeline Operator (`|`)
-Bring the philosophy of Unix pipes directly to the web browser. The `|` operator feeds the output (`pipe_data`) of one task into the input of the next, allowing complex workflows without intermediate servers.
+Bring the philosophy of Unix pipes directly to the web browser. The `|` operator feeds the output (`pipe_data`) of one task into the input of the next.
 
 ```text
-> /read ~/Desktop/server.log | /fetch [https://raw.githubusercontent.com/.../parser.wasm](https://raw.githubusercontent.com/.../parser.wasm) | /rhai "Parsed Output:\n" + pipe_data
+> /read ~/Desktop/server.log | /fetch https://raw.githubusercontent.com/.../parser.wasm | /rhai "Parsed Output:\n" + pipe_data
 ```
 
-<img src="assets/Pipe_v1_0_2.gif" width="100%" alt="WASM Pipe Command">
+https://github.com/user-attachments/assets/203b8391-5170-4b86-add1-e2585818b128
 
 *Example: We select the critical text in our desktop file and filter it in the UI using Rhai:*
 ```text
 > /read ~/Desktop/server.log | /rhai let res=""; let lines=pipe_data.split("\n"); for x in lines { if x.index_of("CRITICAL") != -1 { res += x + "\n"; } } res
 ```
-
-### 📦 The Sandbox Engine (`/fetch`)
-Why download and install apps when you can fetch them securely into RAM? IsoBrowse features a built-in decentralized `wasmtime` application runner. You can try with these examples:
-
-```text
-> /fetch [https://raw.githubusercontent.com/igtumt/repo/calc.wasm](https://raw.githubusercontent.com/igtumt/repo/calc.wasm) 250 x 4
-```
-```text
-> /fetch [https://raw.githubusercontent.com/igtumt/isomodules/main/magic8.wasm](https://raw.githubusercontent.com/igtumt/isomodules/main/magic8.wasm) "ASK A QUESTION!"
-```
-
-<img src="assets/fetch_v1_0_2.gif" width="100%" alt="WASM fetch Command">
-
-* **Direct to RAM:** The `.wasm` binary is fetched directly from the internet.
-* **Sandbox:** Executed within a WASI P1 sandbox. The app cannot access your local files or network. Output is piped directly back to the IsoBrowse Terminal UI.
-
-### ⚡ The Native Engine (`/rhai`)
-Need to run quick logic without fetching external WASM? Write and execute code directly inside the browser using the embedded **Rhai Engine** (a fast, JS/Rust-like scripting language).
-
-```text
-> /rhai let x = 50; let y = 4; x * y
-```
-
-<img src="assets/rhai_v1_0_2.gif" width="100%" alt="Rhai Command">
-
-*Executes natively in < 6ms without relying on external web servers or slow JavaScript V8 engines.*
-
-### 🛠️ The Task Pipelines
-Instead of relying on bloated external websites, IsoBrowse can synthesize data locally using internal tasks:
-* `/nojs <url>` - Strips all JavaScript and trackers from any target URL before rendering.
-* `/news` - Aggregates global news purely in Rust, bypassing ad-networks.
-* `/crypto` - Live market telemetry rendered in an isolated local container.
-* `/game` - Boots a purely local, offline WASM Cyber-Snake game to demonstrate runtime capabilities.
-
 ---
+
 
 ## 🛡️ Core Web Architecture: Dual-Mode Run
 
-When you aren't using the terminal commands, IsoBrowse acts as a web browser with two distinct execution modes:
+When you aren't using the terminal commands, IsoBrowse acts as an isolated web browser with two distinct execution modes:
 
 ### 🏄 MOD 1: Surf Mode (The WASM Decontamination Chamber)
 * **The Concept:** A sandboxed WebAssembly runtime that processes raw HTML.
-* **How it works:** Terminal is optional. The Rust engine intercepts the payload at the network level. Inside the WASM cell, it physically removes `<script>` tags, restricts `<iframe>` elements, and destroys hidden trackers *before* rendering. 
-* **The Result:** A purely static, ultra-lightweight, read-only version of the web.
+* **How it works:** The Rust engine intercepts the payload at the network level. Inside the WASM cell, it removes `<script>` tags, restricts `<iframe>` elements, and drops trackers *before* rendering. 
+* **The Result:** A purely static, lightweight, read-only version of the web.
 
 ### 🟢 MOD 2: Native Vault (The Monitored Web)
-* **The Concept:** The unrestricted, full-web experience with telemetry.
-* **How it works:** Hooked directly into your OS hardware telemetry. It continuously monitors the active tab's CPU load, RAM footprint, and DOM mutations in real-time.
-* **The Result:** If hardware anomalies are detected (e.g., massive memory leaks, high idle CPU from crypto-miners, or extreme DOM spikes from UI-cloning drainer scripts), the system locks down and visually alerts you.
+* **The Concept:** The standard web experience with hardware telemetry.
+* **How it works:** It continuously monitors the active tab's CPU load, RAM footprint, and DOM mutations in real-time.
+* **The Result:** If hardware anomalies are detected (e.g., massive memory leaks or high idle CPU), the system locks down the tab and visually alerts you.
 
 ---
 
 ## 📥 Download and Run (macOS MVP)
 
-You can test the MVP locally on your machine. Currently packaged for macOS (Apple Silicon & Intel).
+Currently packaged for macOS (Apple Silicon & Intel).
 
 1. Go to the [Releases](https://github.com/igtumt/isobrowse/releases) tab and download `IsoBrowse-v1.0.2-Mac.zip`.
 2. Extract the ZIP file to your `Downloads` or `Applications` folder.
-3. **Important macOS Security Note:** Because IsoBrowse is an open-source experiment and not signed with a paid Apple Developer certificate, macOS Gatekeeper will incorrectly flag it as "damaged". To bypass this and remove the quarantine flag, run this single command in your terminal:
+3. **Important macOS Security Note:** Because IsoBrowse is an open-source experiment and not signed with a paid Apple Developer certificate, macOS Gatekeeper will incorrectly flag it as "damaged". To bypass this, run this single command in your terminal:
    
    ```bash
    xattr -cr /path/to/your/extracted/IsoBrowse.app
    ```
 
-4. Double click `IsoBrowse.app` to launch the runtime!
+4. Double click `IsoBrowse.app` to launch the runtime.
 
 ---
 
@@ -124,28 +165,39 @@ You can test the MVP locally on your machine. Currently packaged for macOS (Appl
 
 **Prerequisites:**
 * Rust Toolchain (`cargo`)
-* LLVM and Clang (Install via Homebrew: `brew install llvm`)
-* WASI-SDK (The build script handles dynamic linking)
+* LLVM and Clang (`brew install llvm`)
+* WASI-SDK
 
 **Installation:**
 ```bash
-git clone [https://github.com/igtumt/isobrowse.git](https://github.com/igtumt/isobrowse.git)
+git clone https://github.com/igtumt/isobrowse.git
 cd isobrowse
 sh run.sh
 ```
 
-*(Note: You may encounter UI bugs on heavily dynamic SPA sites while in Surf Mode (Mod 1). See Roadmap below).*
+---
+
+## 🚧 Current Limitations (MVP)
+
+IsoBrowse is highly experimental. As a V1.0 release, you should be aware of the following constraints:
+
+* **WASM Support is CLI/Text-Centric:** The current sandbox natively supports WASI P1. This means modules that return text, data, or math (like parsers, calculators, scripts) work perfectly. However, complex WASM modules requiring WebGL, Canvas, or 3D rendering will not execute in the terminal yet.
+* **Rhai Sandbox Limits:** The embedded Rhai engine is strictly sandboxed. Heavy OS-level commands or highly complex external library calls within Rhai might be restricted or unsupported in this iteration.
+* **Surf Mode (Mod 1) Rendering:** Since Surf Mode aggressively strips all JavaScript, heavily modern Single Page Applications (SPAs like React/Vue apps) might render as blank pages or broken layouts. It is currently optimized for text-heavy, document-based websites (like Hacker News, blogs, wikis).
+* **Mod 2:** If you click on ads, the browser will currently close itself.
+
 
 ---
 
-## 🗺️ V2.0 Roadmap: A Community-Driven Platform
+## 🗺️ V2.0 Roadmap
 
-IsoBrowse is built with a "Platform-First" mindset. Future development priorities will be heavily directed by developer adoption and WASM standards:
+Future development priorities will be heavily directed by developer adoption and WASM standards:
 
-* **Advanced Pipeline Logic (AND, OR, NOT):** Introducing logical operators (`&&`, `||`, `!`) to the IsoBrowse command bar for complex data filtering, conditional module execution, and advanced string parsing directly within the native sandbox.
-* **WASI-HTTP & Network Sockets:** Adapting to the bleeding edge of WebAssembly. As the official WASI working groups release new standards, the IsoBrowse core engine will evolve to support network-capable WASM modules safely.
-* **Headless Rendering Engine:** Upgrading SURF MODE (Mod 1) to securely process Single Page Applications (SPAs) and ethically bypass extreme anti-bot shields (Cloudflare, DataDome) entirely within the WASM sandbox.
-* **IsoModules Registry:** Establishing a public, open-source registry where any developer can write a tool in Rust/C/Zig/Python, compile it to WASM, and users can instantly `/fetch` and run it without installation.
+* **Advanced Pipeline Logic (AND, OR, NOT):** Introducing logical operators (`&&`, `||`, `!`) to the IsoBrowse command bar for complex data filtering.
+* **Iterative File System Writing (`/write`):** We plan to develop this step-by-step. Future updates will introduce a permission-based `/write` command to save pipeline outputs back to local disk without breaking sandbox isolation.
+* **WASI-HTTP & Outbound Networking:** Adapting to new WebAssembly standards. Soon, modules will be able to make outbound requests (e.g., piping processed data directly into APIs via POST).
+* **Headless Rendering Engine:** Upgrading SURF MODE to process Single Page Applications (SPAs) entirely within the WASM sandbox.
+* **Visual IsoModules Store:** Evolving the `/fetch` registry into a public, visual app store inside the browser.
 
 ---
 
