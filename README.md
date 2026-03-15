@@ -71,8 +71,9 @@ Users can fetch and execute these modules instantly without installation.
 IsoModules transform the browser into a **modular execution platform** where web data, local files, and remote modules can be combined through pipelines.
 
 🧩 The Ecosystem
-We are building an open App Store for the terminal web! If you've written a WASM tool that works well with IsoBrowse, add it to our official registry:
-👉 Explore or Contribute to Awesome_IsoModules
+We are building an open App Store for the terminal web! If you've written a WASM tool that works well with IsoBrowse, add it to our official registry: 
+👉 **[Explore or Contribute to Awesome_IsoModules](https://github.com/igtumt/Awesome_IsoModules)**
+
 
 ---
 
