@@ -19,6 +19,8 @@ This allows users to intercept payloads, execute sandboxed WebAssembly modules, 
 
 ## 📸 System Interface
 
+https://github.com/user-attachments/assets/20dd5d89-8986-4b97-a5d4-416e6e61643e
+
 <img src="assets/isobrowse_dashboard_v1.0.2.png" width="100%" alt="IsoBrowse Dashboard">
 <br>
 <em>The Local Workspace & Decentralized Modules Dashboard.</em>
@@ -67,6 +69,10 @@ Developers can build tools in **Rust, C, or Zig**, compile them to WASM, and pub
 Users can fetch and execute these modules instantly without installation.
 
 IsoModules transform the browser into a **modular execution platform** where web data, local files, and remote modules can be combined through pipelines.
+
+🧩 The Ecosystem
+We are building an open App Store for the terminal web! If you've written a WASM tool that works well with IsoBrowse, add it to our official registry:
+👉 Explore or Contribute to Awesome_IsoModules
 
 ---
 
@@ -202,4 +208,6 @@ Future development priorities will be heavily directed by developer adoption and
 ---
 
 ## 📜 License
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the `LICENSE` file for details.
+This project is dual-licensed under the terms of both the MIT License and the Apache License (Version 2.0). 
+See the `LICENSE-MIT` and `LICENSE-APACHE` files for details.
+
