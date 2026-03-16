@@ -110,6 +110,9 @@ https://github.com/user-attachments/assets/89bd418f-2d31-4ee3-93bc-42df948fedb3
 
 * **Direct to RAM:** The `.wasm` binary is fetched directly from the internet.
 * **Sandbox:** Executed within a WASI P1 sandbox. The app cannot access your local files or network.
+No installation.
+No dependencies.
+No system pollution.
 
 
 ### ⚡ The Native Engine (`/rhai`)
@@ -148,6 +151,8 @@ https://github.com/user-attachments/assets/203b8391-5170-4b86-add1-e2585818b128
 ## 🛡️ Core Web Architecture: Dual-Mode Run
 
 When you aren't using the terminal commands, IsoBrowse acts as an isolated web browser with two distinct execution modes:
+
+https://github.com/user-attachments/assets/344f68c9-23e1-4881-beb3-95af1c755346
 
 ### 🏄 MOD 1: Surf Mode (The WASM Decontamination Chamber)
 * **The Concept:** A sandboxed WebAssembly runtime that processes raw HTML.
