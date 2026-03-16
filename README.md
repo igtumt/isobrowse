@@ -1,8 +1,10 @@
+https://github.com/user-attachments/assets/8dfb66ef-c7c2-45b6-adc3-c48af84d57f9
+
 # ⚡ IsoBrowse MVP: The Experimental Programmable Web & Local Runtime
 
 **IsoBrowse is not just a browser — it is a programmable execution environment for the web and local data.**
 
-IsoBrowse is an experimental web runtime that turns the browser address bar into a command-driven interface. Instead of simply rendering websites, IsoBrowse treats the web as raw data that flows through controlled runtimes, sandbox environments, and IsoModules pipelines.
+IsoBrowse is an experimental web runtime that turns the browser address bar into a command-driven interface. Instead of simply rendering websites, IsoBrowse treats the web as inputs that flows through controlled runtimes, sandbox environments, and IsoModules pipelines.
 
 Modern browsers execute large amounts of untrusted JavaScript by default. IsoBrowse flips this model. 
 
@@ -29,6 +31,9 @@ https://github.com/user-attachments/assets/20dd5d89-8986-4b97-a5d4-416e6e61643e
 <br>
 <em>Executing a dynamic remote WebAssembly payload directly from a GitHub raw link into RAM.</em>
 
+DEMO
+
+
 ## 💻 Example Session
 
 ```text
@@ -38,7 +43,7 @@ Rendering clean page...
 > /rhai 40 + 2
 42
 
-> /read s~/Desktop/server.log | /rhai pipe_data.len()
+> /read ~/Desktop/server.log | /rhai pipe_data.len()
 1543
 
 > /fetch https://raw.githubusercontent.com/igtumt/isomodules/main/calc.wasm 5 x 6
@@ -59,7 +64,7 @@ Modern browsers have become massive operating systems that let websites run thou
 
 IsoBrowse changes the rules. It turns the traditional "Address Bar" into a **Command-Driven Terminal**. You don't just visit URLs; you execute pipelines and modules. 
 
-**IsoBrowse combines a web browser, a WASM runtime, Unix pipelines, local scripting, and a decentralized IsoModules Store.**
+**IsoBrowse combines a web browser, a WASM runtime, Unix pipelines, local scripting, and IsoModules.**
 
 ### 📦 The IsoModules Ecosystem
 
@@ -71,7 +76,9 @@ Users can fetch and execute these modules instantly without installation.
 IsoModules transform the browser into a **modular execution platform** where web data, local files, and remote modules can be combined through pipelines.
 
 🧩 The Ecosystem
-We are building an open App Store for the terminal web! If you've written a WASM tool that works well with IsoBrowse, add it to our official registry: 
+We are experimenting with an open ecosystem of small WebAssembly tools that can run inside the IsoBrowse runtime, early adopters welcome.
+
+If you build an IsoModule we will list it in the official registry.
 👉 **[Explore or Contribute to Awesome_IsoModules](https://github.com/igtumt/Awesome_IsoModules)**
 
 
@@ -93,7 +100,9 @@ IsoBrowse ships with a few native modules to demonstrate the system:
 Developers can distribute modules as standalone `.wasm` binaries.  
 Users can fetch and execute them directly from the address bar:
 
+Examples : 
 ```text
+> /fetch https://raw.githubusercontent.com/igtumt/isomodules/main/calc.wasm 50 x 2
 > /fetch https://raw.githubusercontent.com/igtumt/isomodules/main/magic8.wasm "ASK A QUESTION!"
 ```
 
@@ -192,7 +201,16 @@ IsoBrowse is highly experimental. As a V1.0 release, you should be aware of the 
 * **Rhai Sandbox Limits:** The embedded Rhai engine is strictly sandboxed. Heavy OS-level commands or highly complex external library calls within Rhai might be restricted or unsupported in this iteration.
 * **Surf Mode (Mod 1) Rendering:** Since Surf Mode aggressively strips all JavaScript, heavily modern Single Page Applications (SPAs like React/Vue apps) might render as blank pages or broken layouts. It is currently optimized for text-heavy, document-based websites (like Hacker News, blogs, wikis).
 * **Mod 2:** If you click on ads, the browser will currently close itself.
+* **The Pipeline (`|`) is currently Argument-based:** In this V1.0 MVP, the pipeline operator (`|`) passes data to WASM modules as command-line arguments rather than true `stdin` streaming. This works perfectly for short strings and basic commands, but will hit OS argument limits for large files (like heavy Markdown parsing). 
+* **Next Up (V1.1):** Implementing true `stdin/stdout` byte-streaming for the pipeline is our #1 priority. 
 
+---
+
+IsoBrowse is currently a proof-of-concept MVP. While we have tested the core sandbox and basic pipelines, **we have not edge-tested every single command.** * `/read` might choke on a 10GB file.
+* Some WASM modules might hit undocumented memory limits.
+* There are absolutely limitations and bugs we haven't discovered yet.
+
+**The code is 100% open.** We built this to prove that the "Address Bar as a Terminal" concept works. If you break the sandbox, find a pipeline bottleneck, or hit a weird bug—congratulations! Please open an Issue or submit a PR. Let's build and refine this ecosystem together.
 
 ---
 
