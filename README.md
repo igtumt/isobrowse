@@ -1,128 +1,133 @@
-# IsoBrowse
+IsoBrowse
 
-IsoBrowse is a lightweight, local-first WebAssembly (WASM) pipeline environment. It is designed for developers who need to process data quickly and securely, combining the composability of classic Unix pipelines with the modern sandboxing of WASM.
+A simple, local-first WebAssembly (WASM) pipeline runtime.
 
-Everything runs entirely on your machine. No cloud, no trace.
+Not a browser.
+Not a CLI.
+Something in between.
 
----
+IsoBrowse lets you process data securely on your own machine by chaining small, isolated WASM modules together—just like classic Unix pipelines.
 
-## 💡 The Problem It Solves
+Why?
 
-When manipulating data (JSON, HTML, logs, CSVs), we usually rely on traditional CLI tools (`jq`, `awk`, `sed`, `grep`, Python scripts, etc.). However, these tools:
-* Require environment setup and dependency management.
-* Give tools full access to your host OS and file system.
-* Can be hard to compose uniformly across different operating systems.
+Developers constantly manipulate data (JSON, HTML, logs, CSVs).
 
-**IsoBrowse** approaches this differently:
-* **Sandboxed by Default:** Every tool runs inside an isolated WASM container.
-* **Zero Dependencies:** If you have IsoBrowse, you have the tools. 
-* **Pipeline-First:** Everything streams via `stdin` to `stdout`.
+Today, that usually means:
 
----
+Online formatters → paste data into ad-heavy websites
+CLI tools (jq, awk, Python) → setup, dependencies, full system access
 
-## ⚙️ Core Concepts
+IsoBrowse tries a simpler approach:
 
-### 1. Pipeline Execution
-Chain commands together just like you would in a Unix terminal. Each step receives input from the previous one, processes it, and pipes it forward.
+Local & Private: Everything runs locally in memory
+Sandboxed: Each tool runs inside a Wasmtime WASM sandbox
+No setup: If IsoBrowse runs, tools run
+Pipeline-first: stdin → stdout, composable
+How it works
 
-```bash
-> /echo "Hello World" | /run lowercase | /run slugify
-```
+You pipe data from one module to another.
 
-### 2. WASM Sandbox
-There is no direct OS access. Modules cannot read your arbitrary files or make hidden network calls. They only know what you feed them through the pipeline.
+1. Basic example
 
----
+> /echo "hello world" | /run uppercase
+HELLO WORLD
 
-## 🧪 Example Workflows
+2. Under the hood
 
-IsoBrowse thrives on composition. Here are a few examples of what you can do without leaving the sandbox:
+> /echo "hello world" | /run https://yoururl.com/uppercase.wasm
 
-**Text Processing:**
-```bash
-> /echo "HELLO WORLD" | /run lowercase
-```
+3. Running scripts (Python in WASM)
 
-**Fetch & Parse:**
-```bash
-> /get example.com | /run html2text
-```
+> /echo "print('hello')" | /run python
 
-**JSON Extraction:**
-```bash
-> /get api.example.com/users | /run jq "name"
-```
+4. Fetch + parse
 
-**Advanced Pipeline (Web Scraping):**
-```bash
-> /get news.ycombinator.com | /run htmlclean | /run linkextract | /run sort | /run uniq
-```
+> /get news.ycombinator.com | /run htmlclean | /run linkextract | /run sort
 
----
+5. JSON
 
-## 🧩 The Modules
+> /get https://api.example.com | /run jq "name"
+🧩 Modules
 
-IsoBrowse relies on standalone, single-purpose WASM modules. We maintain a growing standard library of tools (text formatting, hashing, scraping, data parsing) here:
+I’ve built ~80 small WASM tools so far (text, parsing, hashing, etc):
 
-👉 **[igtumt/isomodules](https://github.com/igtumt/isomodules)**
+👉 https://github.com/igtumt/isomodules
 
-Each module is written in Rust, compiled to WASI, and strictly follows the "do one thing well" philosophy.
+They follow a simple idea:
 
----
+do one thing, and do it well
 
-## 🖥 Architecture
+🚀 Build your own tools
 
-IsoBrowse is a hybrid system built for speed and security:
+IsoBrowse is built around small WASM modules.
 
-* **Backend:** Rust (Handles the runtime and WASM engine execution).
-* **UI:** WebView (A lightweight, terminal-like interface).
-* **Execution:** WASM Workers (Where the actual data processing happens).
+You can run any tool from a URL:
 
-**The Flow:**
-`User Input` → `Pipeline Parser` → `WASM Execution` → `Render Output`
+> /run https://your-tool.wasm
 
----
+So you can also build your own and share them.
 
-## ⚖️ Trade-offs & Limitations
+No install
+No packaging
+No ecosystem barriers
 
-We believe in being honest about what this tool is *not*:
-* **It is not a web browser.** It's a programmable terminal and data pipeline engine.
-* **Slight Overhead:** While WASM is fast, it's still running in a sandbox, which carries a small overhead compared to raw native binaries.
-* **Ecosystem:** Not all of your favorite CLI tools exist as WASM modules yet.
-* **Memory:** Chaining very large pipelines might increase memory usage depending on the data size.
+Just compile to WASM and it works.
 
----
+⚡ 5-minute WASM tool
 
-## 🔮 Future Ideas
+Here is the simplest possible example:
 
-This is an evolving experiment. Some things we are exploring:
-* A WASM module registry to easily add third-party tools (like `/run sqlite` or `/run python`).
-* Local-first AI integration for text analysis within the pipeline.
-* A broader community ecosystem for custom plugins.
+1. Create a Rust project
+cargo new mytool
+cd mytool
+2. Replace main.rs
+use std::io::{self, Read};
 
----
+fn main() {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input).unwrap();
+    print!("{}", input.to_uppercase());
+}
+3. Build to WASM
+rustup target add wasm32-wasi
+cargo build --target wasm32-wasi --release
 
-## 🚀 Getting Started
+Output:
 
-To try IsoBrowse locally on your machine:
+target/wasm32-wasi/release/mytool.wasm
+4. Run it
+> /echo "hello" | /run ./mytool.wasm
 
-```bash
+That’s it.
+
+🖥 Architecture
+Rust core
+Wasmtime sandbox
+WebView UI
+
+Flow:
+
+Input → Pipeline → WASM → Output
+
+Everything runs in memory.
+
+⚖️ Limitations
+Not a full browser (no SPA support yet)
+WASM ecosystem is still growing
+Getting Started
 git clone https://github.com/igtumt/isobrowse
 cd isobrowse
 cargo run
-```
+🧭 Final Thought
 
----
+I built IsoBrowse as a small experiment.
 
-## 🤝 Contributing
+It turned into something I use daily.
 
-Contributions, feedback, and new WASM module ideas are always welcome. Whether it's a performance tweak, a UI enhancement, or a new tool for `isomodules`, feel free to open an issue or a pull request.
+Maybe it’s useful for you too.
 
----
+A safe place to run data.
 
-## 📄 License
+License
 
-This project is dual-licensed under the MIT and Apache 2.0 licenses, aligning with the standard Rust ecosystem.
-
-* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
+MIT + Apache 2.0
