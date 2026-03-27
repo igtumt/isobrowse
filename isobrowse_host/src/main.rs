@@ -23,7 +23,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     
-    // Operating System (OS) Telemetry Engine
     let telemetry_proxy = proxy.clone();
     thread::spawn(move || {
         let mut sys = System::new_all();
@@ -40,7 +39,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     
-    // Secure Web Request Engine (Shielded User-Agent)
     let http_client = Arc::new(
         reqwest::blocking::Client::builder()
             .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15")
@@ -51,49 +49,226 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let window = WindowBuilder::new()
-        .with_title("IsoBrowse MVP - Global Edition")
+        .with_title("IsoBrowse WebAssembly Pipeline Runtime")
         .with_inner_size(tao::dpi::LogicalSize::new(1400.0, 950.0))
         .build(&event_loop)?;
 
-    // ==========================================
-    // CORE JAVASCRIPT / UI ENGINE
-    // ==========================================
     let init_script = r##"
-        // MAC OS CMD+C / CMD+A AND GENERAL KEYBOARD CRASH SHIELD
-        document.addEventListener('keydown', function(e) {
+        window.isoCatalogData = [];
+
+        window.injectCmd = function(modName) {
             let host = document.getElementById('isobrowse-shadow-host');
-            let active = host ? host.shadowRoot.activeElement : null;
-            let inInput = (active && active.id === 'iso-url');
+            if (host && host.shadowRoot) {
+                let termInput = host.shadowRoot.getElementById('iso-url');
+                if (termInput) {
+                    let currentVal = termInput.value.trim();
+                    if (currentVal !== '' && !currentVal.endsWith('|')) {
+                        termInput.value = currentVal + ' | /run ' + modName + ' ';
+                    } else {
+                        termInput.value = currentVal + ' /run ' + modName + ' ';
+                    }
+                    setTimeout(() => { termInput.focus(); }, 50);
+                }
+            }
+        };
+
+        window.renderCatalogCards = function(data) {
+            const container = document.getElementById('modules-container');
+            if(!container) return;
+            container.innerHTML = '';
+            if(data.length === 0) {
+                container.innerHTML = '<div style="color:#ff3366; text-align:center; width:100%; grid-column: 1 / -1;"><br>No modules found matching your search.</div>';
+                return;
+            }
+            data.forEach(mod => {
+                const card = document.createElement('div');
+                card.style.cssText = 'background: #111; border: 1px solid #333; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between;';
+                card.innerHTML = `
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3 style="color:#fff; margin:0; font-size:20px;">${mod.name}</h3>
+                            <span style="background:#333; color:#aaa; padding:3px 8px; font-size:11px; border-radius:4px; font-weight:bold; letter-spacing:1px;">${mod.category}</span>
+                        </div>
+                        <p style="color:#888; font-size:14px; min-height:40px; line-height: 1.5;">${mod.desc}</p>
+                    </div>
+                    <button onclick="window.injectCmd('${mod.name}')" onmouseover="this.style.background='#00ff41'; this.style.color='#000';" onmouseout="this.style.background='#003300'; this.style.color='#00ff41';" style="width: 100%; background: #003300; color: #00ff41; border: 1px solid #00ff41; padding: 8px; cursor: pointer; font-family: monospace; font-weight: bold; border-radius: 4px; transition: 0.2s; margin-top: 15px;">[ INJECT /RUN ${mod.name.toUpperCase()} ]</button>
+                `;
+                container.appendChild(card);
+            });
+        };
+
+        window.filterCatalog = function(term) {
+            term = term.toLowerCase().trim();
+            if(term === '') { window.renderCatalogCards(window.isoCatalogData); return; }
+            const filtered = window.isoCatalogData.filter(m =>
+                (m.name && m.name.toLowerCase().includes(term)) ||
+                (m.tags && m.tags.toLowerCase().includes(term)) ||
+                (m.category && m.category.toLowerCase().includes(term))
+            );
+            window.renderCatalogCards(filtered);
+        };
+
+        window.loadCatalogData = function() {
+            const fallbackData = [
+                { name: 'grep', category: 'TEXT', desc: 'Filters standard input based on a given regex pattern.', tags: 'text unix search filter regex' },
+                { name: 'lowercase', category: 'TEXT', desc: 'Converts all standard input text to lowercase letters.', tags: 'text lower case format' },
+                { name: 'base64', category: 'CRYPTO', desc: 'Encodes or decodes standard input data using Base64.', tags: 'crypto encode decode security' },
+                { name: 'md2html', category: 'WEB', desc: 'Converts Markdown text into clean HTML code instantly.', tags: 'web markdown render' }
+            ];
+
+            fetch('https://raw.githubusercontent.com/igtumt/isomodules/main/catalog.json?v=' + new Date().getTime())
+                .then(r => r.ok ? r.json() : Promise.reject('HTTP Error ' + r.status))
+                .then(data => {
+                    window.isoCatalogData = data;
+                    window.renderCatalogCards(data);
+                })
+                .catch(e => {
+                    console.log('GitHub fetch failed, using fallback data.', e);
+                    window.isoCatalogData = fallbackData;
+                    window.renderCatalogCards(fallbackData);
+                });
+        };
+
+        window.addEventListener('keydown', function(e) {
+            let host = document.getElementById('isobrowse-shadow-host');
+            let shadowActive = host ? host.shadowRoot.activeElement : null;
+            let activeEl = shadowActive || document.activeElement;
+            let isInput = (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT'));
+
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                if (isInput) {
+                    if (e.key === 'ArrowLeft' && activeEl.selectionStart === 0) e.preventDefault();
+                    if (e.key === 'ArrowRight' && activeEl.selectionStart === activeEl.value.length) e.preventDefault();
+                }
+            }
 
             if (e.metaKey || e.ctrlKey) {
-                let key = e.key.toLowerCase();
-                if (['c', 'a', 'x'].includes(key)) {
-                    if (!inInput) {
-                        if (key === 'c') {
-                            e.preventDefault();
-                            navigator.clipboard.writeText(window.getSelection().toString());
-                        } else if (key === 'a') {
-                            e.preventDefault();
-                            document.execCommand('selectAll');
+                let k = e.key.toLowerCase();
+                
+                if (k === 'c') {
+                    if (window.isoIsRunning) {
+                        e.preventDefault();
+                        window.isoIsRunning = false;
+                        window.isoCancelFlag = true; 
+                        
+                        if (host && host.shadowRoot) {
+                            let histDiv = host.shadowRoot.getElementById('terminal-history');
+                            if (histDiv) {
+                                let newEntry = document.createElement('div');
+                                newEntry.innerHTML = `<span style="color: #ff3366; font-weight: bold;">^C (Process Terminated by User)</span>`;
+                                histDiv.appendChild(newEntry);
+                            }
+                            
+                            let inputLine = host.shadowRoot.getElementById('terminal-input-line');
+                            if (inputLine) {
+                                inputLine.style.display = 'flex';
+                                let tc = host.shadowRoot.getElementById('terminal-content');
+                                if (tc) tc.scrollTop = tc.scrollHeight;
+                                setTimeout(() => { host.shadowRoot.getElementById('iso-url').focus(); }, 50);
+                            }
+                            
+                            let stat = host.shadowRoot.getElementById('iso-engine-status');
+                            if (stat) { stat.innerText = 'STANDBY'; stat.style.color = '#00ccff'; }
+                            
+                            let ws = document.getElementById('iso-workspace-view');
+                            if (ws) ws.style.display = 'none';
                         }
+                        return;
+                    } 
+                    else {
+                        e.preventDefault();
+                        let textToCopy = isInput ? activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd) : window.getSelection().toString();
+                        if(!textToCopy && host && host.shadowRoot && host.shadowRoot.getSelection) {
+                            textToCopy = host.shadowRoot.getSelection().toString();
+                        }
+                        if (textToCopy) navigator.clipboard.writeText(textToCopy).catch(()=>{});
                     }
+                } 
+                else if (k === 'v') {
+                    e.preventDefault();
+                    navigator.clipboard.readText().then(text => {
+                        if (isInput) {
+                            let start = activeEl.selectionStart;
+                            let end = activeEl.selectionEnd;
+                            activeEl.value = activeEl.value.substring(0, start) + text + activeEl.value.substring(end);
+                            activeEl.selectionStart = activeEl.selectionEnd = start + text.length;
+                        }
+                    }).catch(()=>{});
+                } 
+                else if (k === 'a') { 
+                    e.preventDefault(); 
+                    if (isInput) { 
+                        activeEl.select(); 
+                    } else {
+                        let s = window.getSelection();
+                        let r = document.createRange();
+                        r.selectNodeContents(document.body);
+                        s.removeAllRanges();
+                        s.addRange(r);
+                    }
+                } 
+                else if (k === 'x' && isInput) {
+                    e.preventDefault();
+                    let textToCopy = activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd);
+                    if (textToCopy) {
+                        navigator.clipboard.writeText(textToCopy).catch(()=>{});
+                        activeEl.value = activeEl.value.substring(0, activeEl.selectionStart) + activeEl.value.substring(activeEl.selectionEnd);
+                        activeEl.selectionStart = activeEl.selectionEnd = activeEl.selectionStart;
+                    }
+                } else if (['z','s','p','r','t','n','w'].includes(k)) {
+                    e.preventDefault(); 
                 }
             } else {
-                if (!inInput) {
-                    let crashRisks = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Backspace', ' '];
-                    if (crashRisks.includes(e.key)) {
-                        e.preventDefault(); 
-                        
-                        let ghostFrame = document.getElementById('isobrowse-ghost-canvas');
-                        if (ghostFrame && ghostFrame.style.display === 'block') {
-                            ghostFrame.contentWindow.postMessage({ type: 'FORWARD_KEY', key: e.key }, '*');
+                if (!isInput && e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                    e.preventDefault(); 
+                    if (window.isoIsRunning) return; 
+                    
+                    let spot = document.getElementById('spotlight-input');
+                    let host = document.getElementById('isobrowse-shadow-host');
+                    let term = host ? host.shadowRoot.getElementById('iso-url') : null;
+                    
+                    if (spot && window.getComputedStyle(document.getElementById('iso-spotlight-home')).display !== 'none') {
+                        spot.focus(); spot.value += e.key;
+                    } else if (term) {
+                        let bBar = host.shadowRoot.getElementById('bottom-bar');
+                        if (bBar && window.getComputedStyle(bBar).display !== 'none') {
+                            term.focus(); term.value += e.key;
                         }
                     }
                 }
             }
-        }, true);
+        }, { capture: true, passive: false });
 
-        try { window.open = function(url) { if (url && url.startsWith('http')) { window.top.location.href = url; } return null; }; } catch(e) {}
+    document.addEventListener('DOMContentLoaded', () => {
+        let shield = document.createElement('style');
+        shield.innerHTML = 'iframe:not(#isobrowse-ghost-canvas) { pointer-events: none !important; }';
+        document.documentElement.appendChild(shield);
+    });
+    
+    setInterval(() => {
+        let iframes = document.getElementsByTagName('iframe');
+        for(let i=0; i<iframes.length; i++) {
+            if(iframes[i].id !== 'isobrowse-ghost-canvas') {
+                iframes[i].style.pointerEvents = 'none';
+            } else {
+                iframes[i].style.pointerEvents = 'auto';
+            }
+        }
+    }, 1000);
+
+        try { 
+            window.open = function(url) { 
+                if (url && typeof url === 'string') { window.top.location.href = url; } 
+                return null; 
+            }; 
+        } catch(e) {}
+
+        setInterval(function() {
+            let links = document.querySelectorAll('a[target="_blank"], a[target="_new"], a[target="_top"]');
+            for (let i = 0; i < links.length; i++) {
+                links[i].setAttribute('target', '_self');
+            }
+        }, 250); 
         
         document.addEventListener('click', function(e) {
             let a = e.target.closest('a');
@@ -110,21 +285,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }, true);
 
         if (window === window.top) {
-            window.isoCurrentMode = sessionStorage.getItem('iso_mode') || 'STANDARD'; 
             window.isoCurrentRam = 0; 
             window.isoCurrentCpu = 0;
             window.isoIsTyping = false;
+            window.isoIsRunning = false; 
+            window.isoCancelFlag = false; 
+            
+            window.isoCmdHistory = [];
+            window.isoCmdIndex = -1;
 
-            window.isoHistory = [];
-            window.isoHistoryIndex = -1;
-
-            window.addToSurfHistory = (url) => {
-                if (window.isoHistoryIndex < window.isoHistory.length - 1) {
-                    window.isoHistory = window.isoHistory.slice(0, window.isoHistoryIndex + 1);
-                }
-                if (window.isoHistory[window.isoHistoryIndex] !== url) {
-                    window.isoHistory.push(url);
-                    window.isoHistoryIndex++;
+            window.addToCmdHistory = (cmd) => {
+                if(cmd && cmd.trim() !== '') {
+                    if(window.isoCmdHistory[window.isoCmdHistory.length - 1] !== cmd) {
+                        window.isoCmdHistory.push(cmd);
+                    }
+                    window.isoCmdIndex = window.isoCmdHistory.length;
                 }
             };
 
@@ -133,66 +308,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if(document.getElementById('isobrowse-shadow-host')) {
                         document.getElementById('isobrowse-shadow-host').shadowRoot.getElementById('iso-url').value = e.data.url;
                     }
-                    window.addToSurfHistory(e.data.url);
-                    if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + e.data.url);
+                    if(window.ipc) window.ipc.postMessage("RUN_PIPELINE:" + e.data.url);
+                }
+                if (e.data && e.data.type === 'INJECT_CMD') {
+                    let host = document.getElementById('isobrowse-shadow-host');
+                    if (host && host.shadowRoot) {
+                        let termInput = host.shadowRoot.getElementById('iso-url');
+                        if (termInput) {
+                            let currentVal = termInput.value.trim();
+                            if (currentVal !== '' && !currentVal.endsWith('|')) {
+                                termInput.value = currentVal + ' | /run ' + e.data.cmd + ' ';
+                            } else {
+                                termInput.value = currentVal + ' /run ' + e.data.cmd + ' ';
+                            }
+                            setTimeout(() => { termInput.focus(); }, 100);
+                        }
+                    }
                 }
             });
+
+            window.openHelpModal = function() {
+                let host = document.getElementById('isobrowse-shadow-host');
+                if(host) {
+                    let modal = host.shadowRoot.getElementById('iso-help-modal');
+                    if(modal) modal.style.display = 'flex';
+                }
+            };
 
             const injectIsoBrowseUI = () => {
                 if (document.getElementById('isobrowse-shadow-host')) return;
 
-                if (window.location.hostname.includes('captive.apple.com')) {
-                    
-                    // MAIN SHOWCASE AND LOGO
+                let isHome = window.location.hostname.includes('captive.apple.com');
+
+                if (isHome) {
                     let w_html = `
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace;">
-                            <h1 style="color: #00ccff; text-shadow: 0 0 10px #00ccff55; font-size: 36px; margin-bottom: 5px;">⚡ IsoBrowse Runtime</h1>
-                            <p style="color: #888; margin-top: 0;">The Programmable, Local Web Pipeline (v1.0 MVP)</p>
+                        <div id="iso-spotlight-home" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; background: #050505;">
+                            <h1 style="color: #00ccff; text-shadow: 0 0 20px #00ccff55; font-size: 48px; margin-bottom: 5px; letter-spacing: 2px;">⚡ IsoBrowse Pipeline</h1>
+                            <p style="color: #888; margin-top: 0; font-size: 14px;">Secure & Isolated Stdin/Stdout Data Processor</p>
                             
-                            <p style="color: #aaa; margin: 20px 0 30px 0; max-width: 600px; text-align: center;">
-                                System initialized. OS Kernel telemetry hooked. You are currently in a secure execution environment.
-                            </p>
+                            <div style="width: 80%; max-width: 900px; margin-top: 40px; position: relative;">
+                                <textarea id="spotlight-input" placeholder="/get api.com/data.json | /run jq" autocomplete="off" spellcheck="false" style="width: 100%; padding: 25px 120px 25px 30px; font-size: 24px; line-height: 1.6; letter-spacing: 0.5px; font-family: monospace; background: #0a0a0a; color: #00ff41; border: 1px solid #333; border-radius: 12px; outline: none; box-shadow: 0 10px 30px rgba(0, 255, 65, 0.05); transition: all 0.3s ease; resize: none; height: 120px; word-break: break-all; white-space: pre-wrap;"></textarea>
+                                <button id="spotlight-run" style="position: absolute; right: 10px; top: 10px; bottom: 10px; background: #00ff41; color: #000; border: none; font-size: 18px; font-weight: bold; font-family: monospace; padding: 0 35px; border-radius: 8px; cursor: pointer; transition: 0.2s;">RUN</button>
+                            </div>
+
+                            <div style="margin-top: 30px; display: flex; gap: 15px; color: #555; font-size: 14px; align-items: center; flex-wrap: wrap; justify-content: center;">
+                                <span>OFFICIAL WORKERS:</span>
+                                <div class="fav-btn" style="color: #4B8BBE; border: 1px dashed #4B8BBE; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run python '">🐍 Python</div>
+                                <div class="fav-btn" style="color: #CC342D; border: 1px dashed #CC342D; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run ruby-slim '">💎 Ruby</div>
+                                <div class="fav-btn" style="color: #777BB4; border: 1px dashed #777BB4; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run php-slim '">🐘 PHP</div>
+                                <div class="fav-btn" style="color: #aaa; border: 1px dashed #666; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value = '/upload | ' + document.getElementById('spotlight-input').value">📂 Upload</div>
+                                <div class="fav-btn" style="color: #00ccff; border: 1px solid #00ccff; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #002233; font-weight:bold; transition:0.2s;" onclick="window.openHelpModal()">[ ? ] CODEX</div>
+                            </div>
+                        </div>
                     `;
-
-                    w_html += '<div style="color: #ccc; text-align: left; background: #111; padding: 20px; border: 1px dashed #333; display: inline-block; width: 100%; max-width: 800px; box-sizing: border-box; font-weight: normal;">';
-                    w_html += '<p style="margin-top:0; color:#fff; font-weight:bold; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:15px;">LOCAL WORKSPACE & DECENTRALIZED MODULES:</p>';
-                    
-                    // GROUP 1: INTERNET DATA AND FILTERING (BLUE)
-                    w_html += '<p title="Info: In Mod 1 (Surf), all standard URL navigations automatically use the /nojs pipeline by default."><strong style="color: #00ccff; font-weight:bold; cursor:help;">/nojs</strong>   - Strips JavaScript and trackers from any target URL. ℹ️</p>';
-                    w_html += '<p><strong style="color: #00ccff; font-weight:bold;">/news</strong>   - Aggregates global news securely.</p>';
-                    w_html += '<p><strong style="color: #00ccff; font-weight:bold;">/crypto</strong> - Live market telemetry.</p>';
-                    
-                    w_html += '<div style="height:10px;"></div>';
-                    
-                    // GROUP 2: LOCAL PROCESSOR AND ENGINE (YELLOW)
-                    w_html += '<p><strong style="color: #ffcc00; font-weight:bold;">/game</strong>   - Local WASM execution test (Retro Snake).</p>';
-                    w_html += '<p title="Ex 1: /rhai let x = 50; let y = 4; x * y&#10;Ex 2: /rhai let name = \'Hacker\'; \'Hello \' + name"><strong style="color: #ffcc00; font-weight:bold; cursor:help;">/rhai</strong>   - Executes native code. <span style="color:#888; font-size:10px;">(A fast JS/Rust-like language)</span> ℹ️ <span style="color:#00ff41; cursor:pointer; text-decoration:underline;" onclick="window.open(\'https://rhai.rs/book/language/\', \'_blank\')">[Syntax Guide]</span></p>';
-
-                    w_html += '<div style="height:10px;"></div>';
-
-                    // GROUP 3: EXTERNAL APP DOWNLOAD AND SANDBOX (ORANGE)
-                    w_html += '<p style="margin-top:10px;"><strong style="color: #ff9900; font-weight:bold;">/fetch</strong>  - Downloads and executes remote WASM payloads securely in RAM.</p>';
-                    w_html += '<p title="Ex: /read ~/Desktop/data.txt"><strong style="color: #ff9900; font-weight:bold; cursor:help;">/read</strong>   - Reads a local file securely into the execution pipeline. ℹ️</p>';
-                    w_html += '<p style="color:#aaa; font-size:11px; margin-top:8px; border-left:2px solid #00ff41; padding-left:10px;">⚡ PRO TIP: Chain commands with the pipe ( | ) operator. Ex: <span style="color:#00ff41;">/read ~/file.txt | /fetch analyzer.wasm</span></p>';
-                    
-                    w_html += '</div>';
-                    w_html += '<p class="iso-alarm-active" style="color: #ff3366; margin-top: 30px;">> Awaiting instructions...</p>';
-                    w_html += '</div>';
 
                     document.body.innerHTML = w_html;
                     document.body.style.backgroundColor = '#050505';
                     document.body.style.margin = '0';
                     document.body.style.overflow = 'hidden';
                 } else {
-                    document.body.style.marginTop = '105px';
-                    
+                    document.body.style.marginTop = '40px';
+                    document.body.style.marginBottom = '200px'; 
                     const gravityMotor = () => {
                         let fixedElements = document.querySelectorAll('header, nav, #masthead-container, ytd-masthead, tp-yt-app-drawer, #header, .navbar');
                         fixedElements.forEach(el => {
                             let st = window.getComputedStyle(el);
                             if (st.position === 'fixed' || st.position === 'sticky') {
                                 if (st.top === '0px' || el.style.top === '0px') {
-                                    el.style.setProperty('top', '105px', 'important');
+                                    el.style.setProperty('top', '40px', 'important');
+                                }
+                                if (st.bottom === '0px' || el.style.bottom === '0px') {
+                                    el.style.setProperty('bottom', '200px', 'important');
                                 }
                             }
                         });
@@ -203,7 +389,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 const host = document.createElement('div');
                 host.id = 'isobrowse-shadow-host';
-                host.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:105px; z-index:2147483647; background:transparent; pointer-events:none;';
+                host.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100vh; z-index:2147483647; background:transparent; pointer-events:none;';
                 document.documentElement.appendChild(host);
 
                 const shadow = host.attachShadow({mode: 'open'});
@@ -212,270 +398,366 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 style.innerHTML = `
                     @keyframes iso-blink { 0% { opacity: 1; } 50% { opacity: 0.3; color: #fff; } 100% { opacity: 1; } }
                     .iso-alarm-active { animation: iso-blink 1s infinite; color: #ff3366 !important; font-weight: bold; }
-                    * { box-sizing: border-box; font-family: monospace; font-size: 11px; margin: 0; padding: 0; }
-                    #panel {
-                        width: 100%; height: 105px; background: #050505; color: #00ff41; pointer-events: auto;
-                        border-bottom: 2px solid #00ff41; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px;
+                    * { box-sizing: border-box; font-family: monospace; margin: 0; padding: 0; }
+                    
+                    #top-bar {
+                        position: absolute; top: 0; width: 100%; height: 40px; background: #050505; border-bottom: 1px solid #333; 
+                        pointer-events: auto; display: flex; align-items: center; justify-content: space-between; padding: 0 15px;
+                        box-shadow: 0 5px 15px rgba(0,0,0,0.5); font-size: 13px;
                     }
-                    button {
-                        background: #000; color: #0f0; border: 1px solid #0f0; padding: 4px 12px;
-                        cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; outline: none; border-radius:0;
+                    #bottom-bar {
+                        position: absolute; bottom: 0; width: 100%; height: 200px; background: #0a0a0a; border-top: 1px solid #00ccff; 
+                        pointer-events: auto; display: flex; flex-direction: column; padding: 10px 25px; box-shadow: 0 -5px 20px rgba(0,204,255,0.05);
                     }
-                    button:hover { background: #003300; }
-                    input {
-                        background: #000; color: #0f0; border: 1px solid #004400; padding: 4px 8px;
-                        outline: none; flex-grow: 1; border-radius:0;
+                    #terminal-content {
+                        flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 15px; 
+                        font-family: monospace; font-size: 19px; line-height: 1.6; letter-spacing: 0.5px;
                     }
-                    .row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-                    .gap { display: flex; gap: 8px; }
-                    .gap5 { display: flex; gap: 5px; }
-                    .gap20 { display: flex; gap: 20px; }
-                    .info-row { background: #0a0a0a; border: 1px solid #333; padding: 4px 8px; }
-                    .text-muted { color: #888; font-size: 10px; }
-                    .text-green { color: #00ff41; }
+                    #terminal-content::-webkit-scrollbar { width: 10px; }
+                    #terminal-content::-webkit-scrollbar-track { background: #000; border-radius: 4px; }
+                    #terminal-content::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+                    #terminal-content::-webkit-scrollbar-thumb:hover { background: #00ccff; }
+
+                    button { cursor: pointer; font-weight: bold; outline: none; transition: 0.2s; }
+                    .gap5 { display: flex; gap: 8px; align-items: center; }
+                    .gap20 { display: flex; gap: 20px; align-items: center; width: 60%; }
                 `;
                 shadow.appendChild(style);
 
-                let displayUrl = window.location.href;
-                if (displayUrl.includes('captive.apple.com')) { displayUrl = ''; }
-
-                const panel = document.createElement('div');
-                panel.id = 'panel';
-                panel.innerHTML = `
-                    <div class="row">
-                        <div class="gap" style="width:70%;">
-                            <button id="iso-back"><</button>
-                            <button id="iso-fwd">></button>
-                            <button id="iso-home" style="color:#00ccff; border-color:#00ccff;">HOME</button>
-                            <input id="iso-url" type="text" value="${displayUrl}" placeholder="Enter URL or try tasks: /news, /fetch, /read, /rhai">
-                            <button id="iso-go">RUN</button>
-                        </div>
-                        <div class="gap5">
-                            <button id="btn-mod1" style="color:#aaa; border-color:#555;">MOD 1 (SURF)</button>
-                            <button id="btn-mod2" style="background:#00ff41; color:#000; border-color:#00ff41; box-shadow:0 0 8px #00ff41;">MOD 2 (NATIVE)</button>
-                        </div>
+                const topBar = document.createElement('div');
+                topBar.id = 'top-bar';
+                if (isHome) { topBar.style.display = 'none'; }
+                topBar.innerHTML = `
+                    <div class="gap20" style="color: #888;">
+                        <span style="font-weight:bold; letter-spacing:1px; color:#fff;">⚡ IsoBrowse</span>
+                        <span>STATE: <span id="iso-engine-status" style="color:#00ff41; font-weight:bold;">SECURE_PIPELINE</span></span>
+                        <span><span id="iso-cpu-label">SYS_CPU:</span> <span id="iso-cpu" style="color:#ffcc00;">0.0 %</span></span>
+                        <span>RAM: <span id="iso-ram" style="color:#ff3366;">0 MB</span></span>
                     </div>
-                    <div class="row info-row">
-                        <div class="gap20">
-                            <span>STATE: <span id="iso-engine-status" style="color:#00ccff; font-weight:bold;">WEB3_VAULT</span></span>
-                            <span>CPU_LOAD: <span id="iso-cpu" style="color:#ffcc00;">0.0 %</span></span>
-                            <span>RAM: <span id="iso-ram" style="color:#ff3366;">0 MB</span></span>
-                            <span>DOM: <span id="iso-dom" style="color:#fff;">0</span></span>
-                            <span id="iso-co2-box" style="display:none;">CO2 SAVED: <span id="iso-co2" style="color:#00ff41; font-weight:bold;">0.00g</span></span>
-                            <span id="iso-blocked-box" style="display:none; color:#ff3366;">BLOCKED: <span id="iso-blocked" style="font-weight:bold; color:#ff3366;">0</span> threats</span>
-                        </div>
-                    </div>
-                    <div class="row text-muted" style="margin-top:2px;">
-                        <span id="iso-info-text">🛡️ INFO: Mod 2 (Vault) is unrestricted. The system locks if malicious anomalies are detected.</span>
-                        <span id="iso-terminal" class="text-green">> [SYSTEM]: OS Kernel hooked. Hardware telemetry active...</span>
+                    <div class="gap5">
+                        <button id="iso-home-btn" style="color:#00ccff; border: 1px solid #00ccff; background: #050505; padding: 4px 12px; border-radius: 4px;">[ TERMINAL HOME ]</button>
                     </div>
                 `;
-                shadow.appendChild(panel);
+                shadow.appendChild(topBar);
+
+                const bottomBar = document.createElement('div');
+                bottomBar.id = 'bottom-bar';
+                if (isHome) { bottomBar.style.display = 'none'; }
+                bottomBar.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; width: 100%; border-bottom: 1px dashed #333; padding-bottom: 5px; margin-bottom: 10px;">
+                        <span style="color: #888; font-weight: bold; letter-spacing: 1px; font-size: 13px;">INTEGRATED TERMINAL</span>
+                        <div style="display:flex; gap: 10px;">
+                            <button id="iso-help-btn" style="background: #111; color: #00ccff; font-size: 13px; border: 1px dashed #00ccff; border-radius: 4px; padding: 4px 12px;" onclick="window.parent.openHelpModal()">CODEX [?]</button>
+                            <button id="iso-go" style="background: #00ccff; color: #000; font-size: 13px; border: none; border-radius: 4px; padding: 4px 20px;">EXECUTE</button>
+                        </div>
+                    </div>
+                    <div id="terminal-content">
+                        <div id="terminal-history" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; color: #aaa;"></div>
+                        <div id="terminal-input-line" style="display: flex; align-items: flex-start; width: 100%;">
+                            <span style="color: #00ccff; font-weight: bold; margin-right: 15px; white-space: nowrap;">isobrowse@local:~$</span>
+                            <textarea id="iso-url" spellcheck="false" autocomplete="off" placeholder="/help (Display commands)" style="flex-grow: 1; background: transparent; color: #00ff41; border: none; font-size: 19px; line-height: 1.6; letter-spacing: 0.5px; font-family: monospace; outline: none; resize: none; min-height: 80px; word-break: break-all; white-space: pre-wrap;"></textarea>
+                        </div>
+                    </div>
+                `;
+                shadow.appendChild(bottomBar);
+
+                const helpModal = document.createElement('div');
+                helpModal.id = 'iso-help-modal';
+                helpModal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2147483648; align-items:center; justify-content:center; backdrop-filter: blur(5px); pointer-events:auto;';
+                
+                helpModal.innerHTML = `
+                    <div style="background:#0a0a0a; border:2px solid #00ccff; padding:30px; border-radius:12px; max-width:700px; width:90%; color:#fff; font-family:monospace; position:relative; box-shadow: 0 0 30px rgba(0,204,255,0.15);">
+                        <button onclick="this.parentElement.parentElement.style.display='none'" style="position:absolute; right:20px; top:20px; background:transparent; border:none; color:#ff3366; font-size:20px; cursor:pointer; font-weight:bold;">X</button>
+                        <h2 style="color:#00ccff; margin-top:0; border-bottom:1px dashed #333; padding-bottom:10px; font-size:24px;">⚡ ISOBROWSE CODEX</h2>
+                        
+                        <div style="display:flex; flex-direction:column; gap:20px; font-size:14px; margin-top: 20px;">
+                            
+                            <div>
+                                <h3 style="color:#888; font-size:12px; letter-spacing:2px; margin-bottom:10px;">[ DATA SOURCES ]</h3>
+                                <div style="display:flex; flex-direction:column; gap:8px;">
+                                    <div style="background:#111; padding:8px; border-left:3px solid #00ff41;"><strong style="color:#00ff41;">/read &lt;file&gt;</strong> - Reads a local file into the pipeline.</div>
+                                    <div style="background:#111; padding:8px; border-left:3px solid #00ccff;"><strong style="color:#00ccff;">/get &lt;url&gt;</strong> - Fetches raw data (JSON/MD/CSV) into the pipeline.</div>
+                                    <div style="background:#111; padding:8px; border-left:3px solid #00ccff;"><strong style="color:#00ccff;">/nojs &lt;url&gt;</strong> - Fetches raw DOM from a website securely.</div>
+                                    <div style="background:#111; padding:8px; border-left:3px solid #ffcc00;"><strong style="color:#ffcc00;">/echo &lt;text&gt;</strong> - Passes raw text directly into the pipeline.</div>
+                                    <div style="background:#111; padding:8px; border-left:3px solid #00ff41;"><strong style="color:#00ff41;">/upload</strong> - Opens native file picker.</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 style="color:#888; font-size:12px; letter-spacing:2px; margin-bottom:10px;">[ WORKERS & TOOLS ]</h3>
+                                <div style="display:flex; flex-direction:column; gap:8px;">
+                                    <div style="background:#111; padding:8px; border-left:3px solid #00ccff;"><strong style="color:#00ccff;">/catalog</strong> - Opens the IsoModules Catalog.</div>
+                                    <div style="background:#111; padding:8px; border-left:3px solid #ff9900;"><strong style="color:#ff9900;">/run &lt;name_or_url&gt; &lt;args&gt;</strong> - Executes a WASM worker.</div>
+                                    <div style="background:#111; padding:8px; border-left:3px solid #ff3366;"><strong style="color:#ff3366;">/rhai &lt;script&gt;</strong> - Executes fast native scripting.</div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                `;
+                shadow.appendChild(helpModal);
 
                 const ghostFrame = document.createElement('iframe');
                 ghostFrame.id = 'isobrowse-ghost-canvas';
                 ghostFrame.sandbox = 'allow-same-origin allow-scripts allow-forms'; 
-                ghostFrame.style.cssText = 'position:fixed; top:105px; left:0; width:100%; height:calc(100vh - 105px); border:none; background:#fff; z-index:2147483646; display:none;';
+                ghostFrame.style.cssText = 'position:fixed; top:40px; left:0; width:100%; height:calc(100vh - 240px); border:none; background:#fff; z-index:2147483646; display:none;';
                 document.documentElement.appendChild(ghostFrame);
 
                 const getEl = (id) => shadow.getElementById(id);
                 const urlInput = getEl('iso-url');
 
-                urlInput.addEventListener('focus', () => { window.isoIsTyping = true; });
-                urlInput.addEventListener('blur', () => { window.isoIsTyping = false; });
-                
-                urlInput.addEventListener('keydown', (e) => { 
-                    e.stopPropagation(); 
-                    if (e.metaKey || e.ctrlKey) {
-                        let key = e.key.toLowerCase();
-                        if (key === 'c') {
-                            e.preventDefault();
-                            let text = urlInput.value.substring(urlInput.selectionStart, urlInput.selectionEnd);
-                            if(text) navigator.clipboard.writeText(text);
-                        } else if (key === 'a') {
-                            e.preventDefault();
-                            urlInput.select();
-                        } else if (key === 'x') {
-                            e.preventDefault();
-                            let text = urlInput.value.substring(urlInput.selectionStart, urlInput.selectionEnd);
-                            if(text) navigator.clipboard.writeText(text);
-                            urlInput.value = urlInput.value.substring(0, urlInput.selectionStart) + urlInput.value.substring(urlInput.selectionEnd);
-                        } else if (key === 'v') {
-                            e.preventDefault();
-                            navigator.clipboard.readText().then(text => {
-                                let start = urlInput.selectionStart;
-                                let end = urlInput.selectionEnd;
-                                urlInput.value = urlInput.value.substring(0, start) + text + urlInput.value.substring(end);
-                                urlInput.selectionStart = urlInput.selectionEnd = start + text.length;
-                            });
+                const setupInput = (inputEl) => {
+                    if(!inputEl) return;
+                    
+                    inputEl.addEventListener('focus', () => { window.isoIsTyping = true; });
+                    inputEl.addEventListener('blur', () => { window.isoIsTyping = false; });
+                    
+                    inputEl.addEventListener('keydown', (e) => {
+                        e.stopPropagation();
+
+                        if (e.key === 'ArrowUp') {
+                            if (inputEl.selectionStart === 0) {
+                                e.preventDefault();
+                                if (window.isoCmdHistory.length > 0 && window.isoCmdIndex > 0) {
+                                    window.isoCmdIndex--;
+                                    inputEl.value = window.isoCmdHistory[window.isoCmdIndex];
+                                }
+                            }
+                        } else if (e.key === 'ArrowDown') {
+                            if (inputEl.selectionStart === inputEl.value.length) {
+                                e.preventDefault();
+                                if (window.isoCmdIndex < window.isoCmdHistory.length - 1) {
+                                    window.isoCmdIndex++;
+                                    inputEl.value = window.isoCmdHistory[window.isoCmdIndex];
+                                } else {
+                                    window.isoCmdIndex = window.isoCmdHistory.length;
+                                    inputEl.value = '';
+                                }
+                            }
+                        } else if (e.key === 'Enter') {
+                            if (!e.shiftKey) { 
+                                e.preventDefault();
+                                inputEl.blur();
+                                let spot = document.getElementById('iso-spotlight-home');
+                                let btn = (spot && spot.style.display !== 'none') ? document.getElementById('spotlight-run') : getEl('iso-go');
+                                if(btn) btn.click();
+                            }
+                        }
+                    });
+                };
+
+                setupInput(urlInput);
+
+                window.updateTerminal = (msg) => { 
+                    if(window.isoCancelFlag) return; 
+                    let host = document.getElementById('isobrowse-shadow-host');
+                    if(host && host.shadowRoot) {
+                        let histDiv = host.shadowRoot.getElementById('terminal-history');
+                        if (histDiv) {
+                            let newEntry = document.createElement('div');
+                            let color = msg.includes('[ERROR]') ? '#ff3366' : '#888';
+                            newEntry.innerHTML = `<span style="color: ${color};">${msg}</span>`;
+                            histDiv.appendChild(newEntry);
+                            let tc = host.shadowRoot.getElementById('terminal-content');
+                            if(tc) tc.scrollTop = tc.scrollHeight;
                         }
                     }
-                });
+                };
 
-                window.updateTerminal = (msg) => { getEl('iso-terminal').innerText = msg; };
                 window.updateOsTelemetry = (cpuVal, ramMB) => {
-                    if (window.isoCurrentMode === 'STANDARD') {
+                    let clbl = getEl('iso-cpu-label');
+                    if (clbl && clbl.innerText !== 'EXEC_TIME:') {
                         getEl('iso-cpu').innerText = cpuVal.toFixed(1) + ' %';
                         getEl('iso-ram').innerText = ramMB + ' MB';
                         window.isoCurrentRam = ramMB; window.isoCurrentCpu = cpuVal;
                     }
                 };
 
-                const activateSurfUI = () => {
-                    window.isoCurrentMode = 'SURF'; sessionStorage.setItem('iso_mode', 'SURF'); 
-                    getEl('btn-mod1').style.cssText = 'background:#00ff41; color:#000; border-color:#00ff41; font-weight:bold; box-shadow: 0 0 8px #00ff41;';
-                    getEl('btn-mod2').style.cssText = 'background:#000; color:#aaa; border-color:#555; box-shadow:none; font-weight:normal;';
-                    getEl('iso-engine-status').innerText = 'WASM_SURF'; getEl('iso-engine-status').style.color = '#fff';
-                    getEl('iso-dom').style.color = '#fff';
-                    getEl('panel').style.borderBottom = '2px solid #00ff41'; 
-                    getEl('iso-url').style.border = '1px solid #004400';
-                    getEl('iso-info-text').innerText = '🏄 INFO: Mod 1 (Surf) is active. You are riding above malicious JS loops, trackers, and hidden ads.';
-                    getEl('iso-co2-box').style.display = 'inline'; getEl('iso-blocked-box').style.display = 'inline';
-                    
-                    Array.from(document.body.children).forEach(child => {
-                        if (child.id !== 'isobrowse-shadow-host' && child.id !== 'isobrowse-ghost-canvas') { child.style.display = 'none'; }
-                    });
-                    document.getElementById('isobrowse-ghost-canvas').style.display = 'block';
-                };
-
-                const activateNativeUI = () => { 
-                    window.isoCurrentMode = 'STANDARD'; 
-                    sessionStorage.setItem('iso_mode', 'STANDARD'); 
-                    
-                    let target = getEl('iso-url').value.trim();
-                    if (target === '' || target.startsWith('/')) { target = 'https://captive.apple.com/hotspot-detect.html'; } 
-
-                    else if (!target.startsWith('http')) { target = 'https://' + target; }
-                    
-                    window.location.href = target; 
-                };
-
-                getEl('btn-mod1').onclick = () => { 
-                    activateSurfUI(); 
-                    let t = getEl('iso-url').value.trim();
-                    if(t !== '') {
-                        window.addToSurfHistory(t);
-                        if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + t); 
-                    }
-                };
-                getEl('btn-mod2').onclick = activateNativeUI;
-
                 const navigate = () => {
-                    let target = getEl('iso-url').value.trim();
+                    let spot = document.getElementById('iso-spotlight-home');
+                    let isSpotlightVisible = spot && spot.style.display !== 'none';
+                    let targetInput = isSpotlightVisible ? document.getElementById('spotlight-input') : getEl('iso-url');
+                    let target = targetInput.value.trim();
+
                     if (target === '') return;
+                    
+                    window.addToCmdHistory(target);
+                    window.isoIsRunning = true; 
+                    window.isoCancelFlag = false;
 
-                    window.updateTerminal("> [SYSTEM]: Execution sequence initiated to: " + target);
+                    let safeTargetForRust = target.replace(/\\\n/g, ' ').replace(/\\\r\n/g, ' ').replace(/\n/g, ' ');
 
-                    if (target.startsWith('/')) {
-                        activateSurfUI();
-                        window.addToSurfHistory(target);
-                        if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + target); 
-                    } else {
-                        if (!target.startsWith('http')) target = 'https://' + target;
-                        getEl('iso-url').value = target; 
+                    let histDiv = getEl('terminal-history');
+                    if (histDiv) {
+                        let newEntry = document.createElement('div');
+                        newEntry.innerHTML = `<span style="color: #00ccff; font-weight: bold; margin-right: 15px;">isobrowse@local:~$</span><span style="color: #fff; white-space: pre-wrap;">${target}</span>`;
+                        histDiv.appendChild(newEntry);
+                        targetInput.value = ''; 
+                        getEl('iso-url').value = ''; 
                         
-                        if (window.isoCurrentMode === 'SURF') {
-                            window.addToSurfHistory(target);
-                            if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + target); 
-                        } else { 
-                            window.location.href = target; 
-                        }
+                        let inputLine = getEl('terminal-input-line');
+                        if (inputLine) inputLine.style.display = 'none';
+
+                        let tc = getEl('terminal-content');
+                        if(tc) tc.scrollTop = tc.scrollHeight;
                     }
-                };
+                    window.updateTerminal("> [SYSTEM]: Sequence initiated...");
 
-                getEl('iso-back').onclick = () => { 
-                    if (window.isoCurrentMode === 'SURF') {
-                        if (window.isoHistoryIndex > 0) {
-                            window.isoHistoryIndex--;
-                            let prevUrl = window.isoHistory[window.isoHistoryIndex];
-                            getEl('iso-url').value = prevUrl;
-                            if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + prevUrl);
-                        }
-                    } else {
-                        window.history.back(); 
+                    getEl('top-bar').style.display = 'flex';
+                    getEl('bottom-bar').style.display = 'flex';
+                    if(spot) spot.style.display = 'none';
+
+                    let gc = document.getElementById('isobrowse-ghost-canvas');
+                    if (gc) { 
+                        gc.style.display = 'none'; 
+                        gc.removeAttribute('srcdoc');
+                        gc.src = 'about:blank';
                     }
+                    
+                    let ws = document.getElementById('iso-workspace-view');
+                    if (!ws) {
+                        ws = document.createElement('div');
+                        ws.id = 'iso-workspace-view';
+                        ws.style.cssText = 'position:fixed; top:40px; left:0; width:100%; height:calc(100vh - 200px); background:#050505; overflow-y:auto; z-index:2147483645; color:#00ff41; padding-bottom: 20px; box-sizing: border-box;';
+                        document.documentElement.appendChild(ws);
+                    }
+                    ws.style.display = 'block';
+                    
+                    ws.innerHTML = `
+                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; background:#050505; font-family:monospace;'>
+                            <div style='color:#00ff41; font-size:22px; margin-bottom: 20px;' class='iso-alarm-active'>[ SYSTEM PIPELINE ACTIVE ]</div>
+                            <div style='width:300px; height:6px; background:#111; border:1px solid #333; margin-top:20px; position:relative; overflow:hidden;'>
+                                <div style='position:absolute; height:100%; width:30%; background:#00ff41; box-shadow:0 0 10px #00ff41; animation:iso-load 1s infinite linear;'></div>
+                            </div>
+                            <style>@keyframes iso-load { 0% { left:-30%; } 100% { left:100%; } }</style>
+                            <p style='color:#888; font-size:14px; margin-top:25px;'>> Allocating memory sandbox & executing pipeline...</p>
+                        </div>
+                    `;
+
+                    if(window.ipc) window.ipc.postMessage("RUN_PIPELINE:" + safeTargetForRust); 
                 };
 
-                getEl('iso-home').onclick = () => {
-                    getEl('iso-url').value = '';
-                    window.location.href = 'https://captive.apple.com/hotspot-detect.html'; 
-                };
+                getEl('iso-home-btn').onclick = () => {
+                    let spot = document.getElementById('iso-spotlight-home');
+                    if (spot) {
+                        let stat = getEl('iso-engine-status');
+                        if (stat) { stat.innerText = 'SECURE_PIPELINE'; stat.style.color = '#00ff41'; }
+                        
+                        let clbl = getEl('iso-cpu-label');
+                        if (clbl) clbl.innerText = 'SYS_CPU:';
 
-                getEl('iso-fwd').onclick = () => { 
-                    if (window.isoCurrentMode === 'SURF') {
-                        if (window.isoHistoryIndex < window.isoHistory.length - 1) {
-                            window.isoHistoryIndex++;
-                            let nextUrl = window.isoHistory[window.isoHistoryIndex];
-                            getEl('iso-url').value = nextUrl;
-                            if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + nextUrl);
-                        }
-                    } else {
-                        window.history.forward(); 
+                        spot.style.display = 'flex';
+                        getEl('top-bar').style.display = 'none';
+                        getEl('bottom-bar').style.display = 'none';
+                        let ws = document.getElementById('iso-workspace-view');
+                        if (ws) ws.style.display = 'none';
+                        document.getElementById('isobrowse-ghost-canvas').style.display = 'none';
+                        let sIn = document.getElementById('spotlight-input');
+                        if(sIn) { sIn.value = ''; sIn.focus(); }
                     }
                 };
 
                 getEl('iso-go').onclick = navigate;
-                urlInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') { urlInput.blur(); navigate(); } });
 
-                if (window.isoCurrentMode === 'SURF' && displayUrl !== '') { 
-                    activateSurfUI(); 
-                    window.addToSurfHistory(displayUrl);
-                    if(window.ipc) window.ipc.postMessage("FETCH_SURF:" + displayUrl); 
+                if (isHome) {
+                    setTimeout(() => {
+                        let sIn = document.getElementById('spotlight-input');
+                        let sBtn = document.getElementById('spotlight-run');
+                        if (sIn && sBtn) {
+                            setupInput(sIn);
+                            sIn.focus();
+                            sBtn.onclick = () => { navigate(); };
+                        }
+                    }, 200);
                 }
-
-                let pageLoadTime = Date.now(); let lastInteractionTime = Date.now(); let lastDomCount = document.getElementsByTagName('*').length; let lastRamMB = 0;
-                const resetIdle = () => { lastInteractionTime = Date.now(); };
-                window.addEventListener('mousemove', resetIdle); window.addEventListener('scroll', resetIdle); window.addEventListener('keydown', resetIdle); window.addEventListener('click', resetIdle);
-
-                let lastCheckedUrl = "";
-                setInterval(() => {
-                    if (window.isoCurrentMode === 'STANDARD') {
-                        let currentUrl = window.location.hostname;
-                        if (currentUrl !== lastCheckedUrl && currentUrl !== "" && !window.location.href.includes('captive.apple.com')) {
-                            lastCheckedUrl = currentUrl;
-                            if(window.ipc) window.ipc.postMessage("CHECK_DOMAIN:" + currentUrl);
-                        }
-                    }
-                }, 2000);
-
-                setInterval(() => {
-                    if (window.isoCurrentMode === 'STANDARD') {
-                        let currentUrl = window.location.href; 
-                        if (!window.isoIsTyping && urlInput.value !== currentUrl && !urlInput.value.startsWith('/') && !currentUrl.includes('captive.apple.com')) { 
-                            urlInput.value = currentUrl; 
-                            pageLoadTime = Date.now(); 
-                        }
-                        
-                        let currentDomCount = document.getElementsByTagName('*').length; getEl('iso-dom').innerText = currentDomCount;
-                        
-                        let isPhishing = false; let threatDetail = ""; let timeSinceLoad = Date.now() - pageLoadTime;
-                        if (timeSinceLoad > 3000 && !currentUrl.includes('captive.apple.com')) {
-                            let isIdle = (Date.now() - lastInteractionTime) > 3000; let isDomSpike = (currentDomCount - lastDomCount) > 800; 
-                            let isRamSpike = (window.isoCurrentRam - lastRamMB) > 100; let isIdleDrain = isIdle && window.isoCurrentCpu > 25.0; 
-                            if (isDomSpike) { isPhishing = true; threatDetail = "Abnormal DOM Spike"; }
-                            else if (isIdleDrain) { isPhishing = true; threatDetail = "High Idle CPU"; }
-                            else if (isRamSpike) { isPhishing = true; threatDetail = "Memory Leak"; }
-                            else if (currentDomCount > 4000 || window.isoCurrentRam > 600) { isPhishing = true; threatDetail = "Excessive Hardware Consumption (Heavy Bloatware / Trackers Detected)!"; }
-
-                        }
-
-                        if (isPhishing) {
-                            getEl('iso-engine-status').innerText = '🚨 SYSTEM OVERLOAD!'; getEl('iso-engine-status').className = 'iso-alarm-active';
-                            getEl('panel').style.borderBottom = '2px solid #ff3366'; getEl('iso-url').style.border = '1px solid #ff3366';
-                            getEl('iso-info-text').innerHTML = `<span class="iso-alarm-active">⚠️ WARNING: ${threatDetail}</span>`;
-                        }
-                        lastDomCount = currentDomCount; lastRamMB = window.isoCurrentRam;
-                    }
-                }, 1000);
             };
 
             window.renderSurfMode = (html, url, cpu, ram, blocked) => {
+                if (window.isoCancelFlag) return; 
+
                 const getEl = (id) => document.getElementById('isobrowse-shadow-host').shadowRoot.getElementById(id);
-                getEl('iso-url').value = url; getEl('iso-cpu').innerText = cpu + " ms";
-                getEl('iso-ram').innerText = ram + " KB"; getEl('iso-blocked').innerText = blocked; 
-                getEl('iso-co2').innerText = (ram * 0.0002).toFixed(4) + "g";
-                window.updateTerminal("> [SYSTEM]: Secure Render Complete. Surf Interface Active.");
-                document.getElementById('isobrowse-ghost-canvas').srcdoc = html;
+
+                window.isoIsRunning = false; 
+                let inputLine = getEl('terminal-input-line');
+                if (inputLine) {
+                    inputLine.style.display = 'flex';
+                    let tc = getEl('terminal-content');
+                    if (tc) tc.scrollTop = tc.scrollHeight;
+                    setTimeout(() => { getEl('iso-url').focus(); }, 50);
+                }
+
+                let tBar = getEl('top-bar');
+                if(tBar) tBar.style.display = 'flex';
+                let bBar = getEl('bottom-bar');
+                if(bBar) bBar.style.display = 'flex';
+                let spot = document.getElementById('iso-spotlight-home');
+                if(spot) spot.style.display = 'none';
+
+                let clbl = getEl('iso-cpu-label');
+                if (clbl) clbl.innerText = 'EXEC_TIME:';
+                let secs = (cpu / 1000).toFixed(2);
+                getEl('iso-cpu').innerText = secs + "s";
+                getEl('iso-ram').innerText = ram + " KB";
+
+                if (url.startsWith('isobrowse://sandbox/catalog_native')) {
+                    let gc = document.getElementById('isobrowse-ghost-canvas');
+                    if (gc) { gc.style.display = 'none'; gc.removeAttribute('srcdoc'); gc.src = 'about:blank'; }
+                    
+                    let ws = document.getElementById('iso-workspace-view');
+                    if (!ws) {
+                        ws = document.createElement('div');
+                        ws.id = 'iso-workspace-view';
+                        ws.style.cssText = 'position:fixed; top:40px; left:0; width:100%; height:calc(100vh - 200px); background:#050505; overflow-y:auto; z-index:2147483645; color:#00ff41; padding-bottom: 20px; box-sizing: border-box;';
+                        document.documentElement.appendChild(ws);
+                    }
+                    ws.style.display = 'block';
+                    ws.innerHTML = `
+                        <div style='display:flex; flex-direction:column; align-items:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; padding: 20px;'>
+                            <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55; margin-bottom: 10px;'>🧰 IsoModules Catalog</h1>
+                            <p style='color:#888; margin-top:0; margin-bottom: 20px;'>Live Official Modules loaded from GitHub</p>
+                            <input type="text" oninput="window.filterCatalog(this.value)" placeholder="Search modules (e.g. json, crypto, text)..." style="width: 80%; max-width: 600px; padding: 15px; background: #0a0a0a; border: 1px solid #00ccff; color: #fff; font-family: monospace; font-size: 16px; border-radius: 8px; outline: none; margin-bottom: 30px; box-shadow: 0 0 15px rgba(0,204,255,0.1);">
+                            <div id="modules-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; width: 90%; max-width: 1200px;">
+                                <div style="color:#00ccff; text-align:center; width:100%; grid-column: 1 / -1; font-size: 18px;"><br><br>⚡ Fetching live catalog from GitHub...</div>
+                            </div>
+                        </div>
+                    `;
+                    window.loadCatalogData();
+                    window.updateTerminal("> [SYSTEM]: Catalog Interface Active.");
+                }
+                else if (url.startsWith('isobrowse://sandbox/')) {
+                    if (url.includes('/chart')) {
+                        let ws = document.getElementById('iso-workspace-view');
+                        if (ws) ws.style.display = 'none';
+                        let gc = document.getElementById('isobrowse-ghost-canvas');
+                        if (gc) {
+                            gc.style.display = 'block';
+                            gc.srcdoc = html;
+                        }
+                        window.updateTerminal("> [SYSTEM]: Pipeline Execution Complete. Live View Active.");
+                    } else if (!url.includes('/catalog_native')) {
+                        let gc = document.getElementById('isobrowse-ghost-canvas');
+                        if (gc) { gc.style.display = 'none'; gc.removeAttribute('srcdoc'); gc.src = 'about:blank'; }
+                        let ws = document.getElementById('iso-workspace-view');
+                        if (!ws) {
+                            ws = document.createElement('div');
+                            ws.id = 'iso-workspace-view';
+                            ws.style.cssText = 'position:fixed; top:40px; left:0; width:100%; height:calc(100vh - 200px); background:#050505; overflow-y:auto; z-index:2147483645; color:#00ff41; padding-bottom: 20px; box-sizing: border-box;';
+                            document.documentElement.appendChild(ws);
+                        }
+                        ws.style.display = 'block';
+                        ws.innerHTML = html; 
+                        window.updateTerminal("> [SYSTEM]: Worker Execution Complete. Output ready.");
+                    }
+                } else {
+                    let ws = document.getElementById('iso-workspace-view');
+                    if (ws) ws.style.display = 'none';
+                    let gc = document.getElementById('isobrowse-ghost-canvas');
+                    if (gc) {
+                        gc.style.display = 'block';
+                        gc.srcdoc = html;
+                    }
+                    window.updateTerminal("> [SYSTEM]: Secure Render Complete. Web Shield Active.");
+                }
             };
 
             const checkAndInject = () => {
@@ -508,8 +790,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Event::UserEvent(UserEvent::IpcMessage(msg)) => {
                 
-                if msg.starts_with("FETCH_SURF:") {
-                    let raw_url = msg.replace("FETCH_SURF:", "");
+                if msg.starts_with("RUN_PIPELINE:") {
+
+                    let raw_url = msg.replace("RUN_PIPELINE:", "");
                     let p_i = proxy.clone();
                     let client = Arc::clone(&http_client);
                     
@@ -517,20 +800,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let start_time = Instant::now();
                         let raw_input = raw_url.trim();
 
-                        // =========================================================
-                        // 1. PIPELINE ENGINE (/read, /fetch, /rhai chained pipeline)
-                        // =========================================================
-                        if raw_input.starts_with("/fetch ") || raw_input.starts_with("/rhai ") || raw_input.starts_with("/read ") {
+                        if raw_input.starts_with("/help") || raw_input.starts_with("/catalog") || raw_input.starts_with("/explore") || raw_input.starts_with("/run ") || raw_input.starts_with("/fetch ") || raw_input.starts_with("/get ") || raw_input.starts_with("/rhai ") || raw_input.starts_with("/read ") || raw_input.starts_with("/echo ") || raw_input.starts_with("/upload") || raw_input.starts_with("/nojs ") {
+
                             let commands: Vec<&str> = raw_input.split('|').collect();
                             let mut pipe_data = String::new();
                             let total_commands = commands.len();
                             let mut final_ram_kb = 0;
 
                             for (index, part) in commands.iter().enumerate() {
-                                let mut cmd = part.trim().to_string();
+                                let cmd = part.trim().to_string();
                                 let is_last = index == total_commands - 1;
 
-                                if cmd.starts_with("/read ") {
+                                if cmd.starts_with("/help") {
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Loading IsoBrowse Codex...")));
+                                    
+                                    pipe_data = "IsoBrowse Commands\n\n/read <file>\n/get <url>\n/echo <text>\n/upload\n/nojs <url>\n/catalog\n/run <name_or_url>\n/rhai <script>".to_string();
+                                    final_ram_kb += 1;
+                                    
+                                    if is_last {
+                                        let success_html = format!("
+                                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                            <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ IsoBrowse Codex</h1>
+                                            <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #00ff4111;'>
+                                                <div style='background:#000; border:1px solid #00ff41; padding:20px; max-height: 400px; overflow-y: auto;'>
+                                                    <div style='color:#00ff41; font-size:19px; line-height:1.6; letter-spacing:0.5px; white-space: pre-wrap;'>{}</div>
+                                                </div>
+                                            </div>
+                                        </div>", pipe_data);
+                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/help".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
+                                    }
+                                }
+                                else if cmd.starts_with("/catalog") || cmd.starts_with("/explore") {
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Connecting to GitHub and fetching live catalog...")));
+                                    
+                                    if is_last {
+                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { 
+                                            html: "".to_string(), 
+                                            url: "isobrowse://sandbox/catalog_native".to_string(), 
+                                            cpu_ms: start_time.elapsed().as_millis(), 
+                                            ram_kb: 5, 
+                                            blocked_count: 0 
+                                        });
+                                    }
+                                }
+                                else if cmd.starts_with("/read ") {
                                     let path = cmd.strip_prefix("/read ").unwrap_or("").trim().trim_matches('"');
                                     let expanded_path = path.replace("~", &std::env::var("HOME").unwrap_or_default());
                                     let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [LOCAL READ]: Accessing {}...", expanded_path)));
@@ -540,36 +853,203 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             pipe_data = content.trim().to_string();
                                             final_ram_kb += pipe_data.len() / 1024;
                                             if is_last {
-                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Pipeline Complete.")));
                                                 let success_html = format!("
-                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
-                                                        <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Local File Access Complete</h1>
-                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #00ff4111;'>
-                                                            <p style='color:#888;'>Target: <span style='color:#fff;'>{}</span></p>
-                                                            <hr style='border:1px dashed #333; margin:15px 0;'>
-                                                            <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
-                                                                <span style='color:#888; font-size:10px;'>[FILE CONTENTS]</span><br><br>
-                                                                <span style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</span>
+                                                <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                    <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Local File Access Complete</h1>
+                                                    <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #00ff4111;'>
+                                                        <p style='color:#888;'>Target: <span style='color:#fff;'>{}</span></p>
+                                                        <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                        <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
+                                                            <div style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #333; padding-bottom:10px; margin-bottom:10px;'>
+                                                                <span style='color:#888; font-size:10px;'>[FILE CONTENTS]</span>
+                                                                <button onclick='let val=this.parentElement.nextElementSibling.innerText; try{{navigator.clipboard.writeText(val);}}catch(e){{let ta=document.createElement(`textarea`);ta.value=val;document.body.appendChild(ta);ta.select();document.execCommand(`copy`);ta.remove();}} let oldBg=this.style.background; this.style.background=`#00ff41`; this.style.color=`#000`; this.innerText=`[ COPIED! ]`; setTimeout(()=>{{this.style.background=oldBg; this.style.color=`#00ff41`; this.innerText=`[ COPY DATA ]`;}}, 800);' style='background:#003300; color:#00ff41; border:1px solid #00ff41; cursor:pointer; padding:4px 10px; font-family:monospace; font-weight:bold; outline:none; transition:0.2s;'>[ COPY DATA ]</button>
                                                             </div>
+                                                            <div style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</div>
                                                         </div>
                                                     </div>
-                                                ", expanded_path, pipe_data);
+                                                </div>
+                                            ", expanded_path, pipe_data);
                                                 let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/read".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
                                             }
                                         },
                                         Err(e) => {
                                             let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Read failed: {}", e)));
+                                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>{}</p></div>", e);
+                                            let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
                                             break;
                                         }
                                     }
-                                } else if cmd.starts_with("/rhai ") {
+                                }
+                                else if cmd.starts_with("/get ") {
+                                    let raw_url = cmd.strip_prefix("/get ").unwrap_or("").trim();
+                                    let data_url = if raw_url.starts_with("http") { raw_url.to_string() } else { format!("https://{}", raw_url) };
+                                    
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [PIPELINE GET]: Downloading raw data from {}...", data_url)));
+
+                                    match client.get(&data_url).send() {
+                                        Ok(resp) => {
+                                            if let Ok(text) = resp.text() {
+                                                pipe_data = text.trim().to_string();
+                                                final_ram_kb += pipe_data.len() / 1024;
+                                                
+                                                if is_last {
+                                                    let success_html = format!("
+                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                        <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Remote Data Fetched</h1>
+                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #00ff4111;'>
+                                                            <p style='color:#888;'>Source: <span style='color:#fff;'>{}</span></p>
+                                                            <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                            <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
+                                                                <div style='color:#00ff41; font-size:14px; white-space: pre-wrap; line-height:1.5;'>{}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>", data_url, pipe_data);
+                                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/get".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
+                                                }
+                                            }
+                                        },
+                                        Err(e) => {
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Get failed: {}", e)));
+                                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>Download Failed:<br>{}</p></div>", e);
+                                            let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
+                                            break;
+                                        }
+                                    }
+                                }
+                                else if cmd.starts_with("/nojs ") {
+                                    let target_site = cmd.strip_prefix("/nojs ").unwrap_or("").trim();
+                                    let data_url = if target_site.starts_with("http") { target_site.to_string() } else { format!("https://{}", target_site) };
+                                    
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [PIPELINE GET]: Pulling raw DOM from {}...", data_url)));
+
+                                    match client.get(&data_url).send() {
+                                        Ok(resp) => {
+                                            let final_url = resp.url().as_str().to_string();
+                                            
+                                            if let Ok(text) = resp.text() {
+                                                pipe_data = text;
+                                                final_ram_kb += pipe_data.len() / 1024;
+                                                
+                                                if is_last {
+                                                    let lower_html = pipe_data.to_lowercase();
+                                                    let blocked_trackers = lower_html.matches("<script").count() + lower_html.matches("<iframe").count() + lower_html.matches("google-analytics").count();
+
+                                                    let html = pipe_data.clone()
+                                                        .replace("<script", "<template").replace("<SCRIPT", "<template")
+                                                        .replace("</script>", "</template>").replace("</SCRIPT>", "</template>")
+                                                        .replace("<iframe", "<template").replace("<IFRAME", "<template")
+                                                        .replace("</iframe>", "</template>").replace("</IFRAME>", "</template>")
+                                                        .replace("<noscript", "<div class=\"iso-noscript\"").replace("<NOSCRIPT", "<div class=\"iso-noscript\"")
+                                                        .replace("</noscript>", "</div>").replace("</NOSCRIPT>", "</div>");
+
+                                                    let mut config = wasmtime::Config::new();
+                                                    config.consume_fuel(true);
+                                                    config.static_memory_maximum_size(500 * 1024 * 1024);
+                                                    
+                                                    if let Ok(engine) = wasmtime::Engine::new(&config) {
+                                                        let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
+                                                        let _ = preview1::add_to_linker_sync(&mut linker, |t| t);
+
+                                                        let pr = p_i.clone();
+                                                        let f_url = final_url.clone();
+                                                        
+                                                        let _ = linker.func_wrap("env", "render_html", move |mut c: wasmtime::Caller<'_, WasiP1Ctx>, ptr: i32, len: i32| {
+                                                            let mem = c.get_export("memory").unwrap().into_memory().unwrap();
+                                                            let mut d = vec![0u8; len as usize]; mem.read(&c, ptr as usize, &mut d).unwrap();
+                                                            let final_output = String::from_utf8_lossy(&d).to_string();
+                                                            let _ = pr.send_event(UserEvent::WasmSurfRender { html: final_output, url: f_url.clone(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: blocked_trackers });
+                                                        });
+                                                        let _ = linker.func_wrap("env", "send_to_ui", |_c: wasmtime::Caller<'_, WasiP1Ctx>, _ptr: i32, _len: i32| {});
+
+                                                        let wasi = wasmtime_wasi::WasiCtxBuilder::new().build_p1();
+                                                        let mut store = wasmtime::Store::new(&engine, wasi);
+                                                        let _ = store.set_fuel(u64::MAX); 
+
+                                                        if let Ok(module) = wasmtime::Module::from_binary(&engine, WASM_ENGINE_GHOST) {
+                                                            if let Ok(instance) = linker.instantiate(&mut store, &module) {
+                                                                if let Ok(alloc) = instance.get_typed_func::<i32, i32>(&mut store, "alloc") {
+                                                                    if let Ok(on_d) = instance.get_typed_func::<(i32, i32), ()>(&mut store, "on_data_received") {
+                                                                        let h_b = html.as_bytes();
+                                                                        if let Ok(h_p) = alloc.call(&mut store, h_b.len() as i32) {
+                                                                            if instance.get_memory(&mut store, "memory").unwrap().write(&mut store, h_p as usize, h_b).is_ok() {
+                                                                                let _ = on_d.call(&mut store, (h_p, h_b.len() as i32));
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        Err(e) => {
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Download failed: {}", e)));
+                                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>{}</p></div>", e);
+                                            let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
+                                            break;
+                                        }
+                                    }
+                                }
+                                else if cmd.starts_with("/upload") {
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SYSTEM]: Waiting for user to select a file...".to_string()));
+
+                                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                        let expanded_path = path.display().to_string();
+                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [LOCAL READ]: Accessing {}...", expanded_path)));
+
+                                        match std::fs::read_to_string(&path) {
+                                            Ok(content) => {
+                                                pipe_data = content.trim().to_string();
+                                                final_ram_kb += pipe_data.len() / 1024;
+                                                
+                                                if is_last {
+                                                    let success_html = format!("
+                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                        <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Local File Upload Complete</h1>
+                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #00ff4111;'>
+                                                            <p style='color:#888;'>Target: <span style='color:#fff;'>{}</span></p>
+                                                            <hr style='border:1px dashed #333; margin:15px 0;'>
+                                                            <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
+                                                                <div style='color:#00ff41; font-size:19px; line-height:1.6; letter-spacing:0.5px; white-space: pre-wrap;'>{}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    ", expanded_path, pipe_data);
+
+                                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/upload".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
+                                                }
+                                            },
+                                            Err(e) => {
+                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Read failed: {}", e)));
+                                                let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>{}</p></div>", e);
+                                                let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
+                                                break;
+                                            }
+                                        }
+                                    } else {
+                                        let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SYSTEM]: File selection cancelled.".to_string()));
+                                        let err_html = format!("<div style='color:#ffcc00; font-family:monospace; text-align:center; padding:50px;'><h2>⚠️ PIPELINE CANCELLED</h2><p>File selection was aborted.</p></div>");
+                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
+                                        break; 
+                                    }
+
+                                } 
+                                else if cmd.starts_with("/echo ") {
+                                    let text = cmd.strip_prefix("/echo ").unwrap_or("").trim();
+                                    let mut unquoted = text;
+                                    if (unquoted.starts_with('"') && unquoted.ends_with('"')) || (unquoted.starts_with('\'') && unquoted.ends_with('\'')) {
+                                        unquoted = &unquoted[1..unquoted.len()-1];
+                                    }
+                                    pipe_data = unquoted.replace("\\n", "\n").replace("\\t", "\t");
+                                }
+                                else if cmd.starts_with("/rhai ") {
                                     let script = cmd.strip_prefix("/rhai ").unwrap_or("").trim();
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Executing step {}/{}...", index + 1, total_commands)));
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Executing sandbox script...")));
 
                                     let engine = rhai::Engine::new();
                                     let mut scope = rhai::Scope::new();
                                     
-                                    // THE MAGIC: We inject the data from the pipeline into Rhai as a local variable named "pipe_data".
                                     if index > 0 && !pipe_data.is_empty() {
                                         scope.push("pipe_data", pipe_data.clone());
                                     }
@@ -580,19 +1060,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         Ok(result) => {
                                             pipe_data = result.to_string();
                                             if is_last {
-                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Result -> {}", pipe_data)));
                                                 let success_html = format!("
-                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                                    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
                                                         <h1 style='color:#ffcc00; text-shadow: 0 0 10px #ffcc0055;'>⚡ Rhai Native Execution Complete</h1>
-                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #ffcc0011;'>
+                                                        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #ffcc0011;'>
                                                             <p style='color:#888;'>Engine: <span style='color:#fff;'>Rhai Embedded Sandbox</span></p>
                                                             <p style='color:#888;'>Execution Time: <span style='color:#ffcc00;'>{} ms</span></p>
                                                             <hr style='border:1px dashed #333; margin:15px 0;'>
                                                             <div style='background:#000; border:1px solid #ffcc00; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
                                                                 <span style='color:#888; font-size:10px;'>[INPUT SCRIPT]</span><br>
-                                                                <span style='color:#fff; font-size:14px;'>{}</span><br><br>
-                                                                <span style='color:#888; font-size:10px;'>[PIPELINE OUTPUT TERMINAL]</span><br>
-                                                                <span style='color:#ffcc00; font-size:18px; font-weight:bold; white-space: pre-wrap;'>{}</span>
+                                                                <span style='color:#fff; font-size:16px; line-height:1.6;'>{}</span><br><br>
+                                                                <div style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #333; padding-bottom:10px; margin-bottom:10px; margin-top:15px;'>
+                                                                    <span style='color:#888; font-size:10px;'>[PIPELINE OUTPUT TERMINAL]</span>
+                                                                    <button onclick='let val=this.parentElement.nextElementSibling.innerText; try{{navigator.clipboard.writeText(val);}}catch(e){{let ta=document.createElement(`textarea`);ta.value=val;document.body.appendChild(ta);ta.select();document.execCommand(`copy`);ta.remove();}} let oldBg=this.style.background; this.style.background=`#ffcc00`; this.style.color=`#000`; this.innerText=`[ COPIED! ]`; setTimeout(()=>{{this.style.background=oldBg; this.style.color=`#ffcc00`; this.innerText=`[ COPY DATA ]`;}}, 800);' style='background:#332b00; color:#ffcc00; border:1px solid #ffcc00; cursor:pointer; padding:4px 10px; font-family:monospace; font-weight:bold; outline:none; transition:0.2s;'>[ COPY DATA ]</button>
+                                                                </div>
+                                                                <div style='color:#ffcc00; font-size:22px; font-weight:bold; letter-spacing:1px; white-space: pre-wrap;'>{}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -602,634 +1084,197 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         },
                                         Err(e) => {
                                             let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ERROR]: {}", e)));
+                                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>{}</p></div>", e);
+                                            let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
                                             break;
                                         }
                                     }
-                                } else if cmd.starts_with("/fetch ") {
+                                } else if cmd.starts_with("/run ") || cmd.starts_with("/fetch ") {
                                     
-                                    // If there is data from the previous process in the pipeline, add it as an argument
-                                    if index > 0 && !pipe_data.is_empty() {
-                                        cmd = format!("{} \"{}\"", cmd, pipe_data.replace("\"", "\\\""));
+                                    let prefix = if cmd.starts_with("/run ") { "/run " } else { "/fetch " };
+                                    let raw_args = cmd.strip_prefix(prefix).unwrap_or("").trim();
+                                    
+                                    let mut parsed_tokens = Vec::new();
+                                    let mut current_arg = String::new();
+                                    let mut in_quotes = false;
+                                    
+                                    for c in raw_args.chars() {
+                                        if c == '"' || c == '\'' {
+                                            in_quotes = !in_quotes; 
+                                        } else if c.is_whitespace() && !in_quotes {
+                                            if !current_arg.is_empty() {
+                                                parsed_tokens.push(current_arg.clone());
+                                                current_arg.clear();
+                                            }
+                                        } else {
+                                            current_arg.push(c);
+                                        }
+                                    }
+                                    if !current_arg.is_empty() {
+                                        parsed_tokens.push(current_arg);
                                     }
                                     
-                                    let parts: Vec<&str> = cmd.splitn(3, ' ').collect();
-                                    let wasm_url = parts.get(1).unwrap_or(&"").to_string();
-                                    let wasm_args = parts.get(2).unwrap_or(&"").to_string();
+                                    let mut wasm_url = parsed_tokens.get(0).unwrap_or(&"".to_string()).clone();
 
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [FETCH ENGINE]: Targeting payload at {}...", wasm_url)));
+                                    let original_name = wasm_url.clone();
+                                    if !wasm_url.is_empty() && !wasm_url.starts_with("http") && !wasm_url.starts_with('/') && !wasm_url.starts_with('.') && !wasm_url.starts_with('~') && !wasm_url.contains(":\\") && !wasm_url.ends_with(".wasm") {
+                                        wasm_url = format!("https://raw.githubusercontent.com/igtumt/isomodules/main/{}.wasm", wasm_url);
+                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [CATALOG]: Alias '{}' detected. Routing to official repository...", original_name)));
+                                    }
 
-                                    match client.get(&wasm_url).send() {
-                                        Ok(resp) => {
-                                            if let Ok(wasm_bytes) = resp.bytes() {
-                                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [WASM]: {} bytes downloaded. Executing step {}/{}...", wasm_bytes.len(), index + 1, total_commands)));
-                                                final_ram_kb += wasm_bytes.len() / 1024;
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [WORKER ENGINE]: Running worker from {}...", wasm_url)));
 
-                                                let mut config = wasmtime::Config::new();
-                                                config.consume_fuel(true);
+                                    let download_result = if wasm_url.starts_with("http") {
+                                        client.get(&wasm_url).send().and_then(|r| r.bytes()).map(|b| b.to_vec()).map_err(|e| e.to_string())
+                                    } else {
+                                        std::fs::read(&wasm_url).map_err(|e| e.to_string())
+                                    };
 
-                                                if let Ok(engine) = wasmtime::Engine::new(&config) {
-                                                    let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
-                                                    let _ = preview1::add_to_linker_sync(&mut linker, |t| t);
+                                    match download_result {
+                                        Ok(wasm_bytes) => {
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [WASM]: {} bytes loaded. Compiling VM sandbox...", wasm_bytes.len())));
+                                            final_ram_kb += wasm_bytes.len() / 1024;
 
-                                                    let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
-                                                    let stdout_pipe = wasmtime_wasi::pipe::MemoryOutputPipe::new(1024 * 1024);
-                                                    builder.stdout(stdout_pipe.clone());
+                                            let mut config = wasmtime::Config::new();
+                                            config.consume_fuel(true);
 
-                                                    let mut app_args = vec!["iso_app.wasm".to_string()];
-                                                    app_args.extend(wasm_args.split_whitespace().map(|s| s.to_string()));
-                                                    let _ = builder.args(&app_args);
+                                            if let Ok(engine) = wasmtime::Engine::new(&config) {
+                                                let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
+                                                let _ = preview1::add_to_linker_sync(&mut linker, |t| t);
 
-                                                    let wasi = builder.build_p1();
-                                                    let mut store = wasmtime::Store::new(&engine, wasi);
-                                                    let _ = store.set_fuel(u64::MAX);
+                                                let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
+                                                let stdout_pipe = wasmtime_wasi::pipe::MemoryOutputPipe::new(1024 * 1024);
+                                                builder.stdout(stdout_pipe.clone());
 
-                                                    match wasmtime::Module::new(&engine, &wasm_bytes) {
-                                                        Ok(module) => {
-                                                            if let Ok(instance) = linker.instantiate(&mut store, &module) {
-                                                                let start_func = instance.get_typed_func::<(), ()>(&mut store, "_start")
-                                                                    .unwrap_or_else(|_| instance.get_typed_func::<(), ()>(&mut store, "").unwrap());
+                                                let pipe_bytes = if index > 0 && !pipe_data.is_empty() { pipe_data.clone().into_bytes() } else { Vec::new() };
+                                                let stdin_pipe = wasmtime_wasi::pipe::MemoryInputPipe::new(pipe_bytes);
+                                                builder.stdin(stdin_pipe);
 
-                                                                let _ = start_func.call(&mut store, ());
+                                                let mut app_args = vec!["isobrowse_worker.wasm".to_string()];
+                                                if parsed_tokens.len() > 1 {
+                                                    app_args.extend_from_slice(&parsed_tokens[1..]);
+                                                }
+                                                let _ = builder.args(&app_args);
 
-                                                                let output_bytes = stdout_pipe.contents();
-                                                                let mut wasm_output = String::from_utf8_lossy(&output_bytes).to_string();
+                                                let model_path = format!("{}/.isobrowse_models", std::env::var("HOME").unwrap_or_default());
+                                                let _ = std::fs::create_dir_all(&model_path);
+                                                let _ = builder.preopened_dir(&model_path, "/models", wasmtime_wasi::DirPerms::all(), wasmtime_wasi::FilePerms::all());
 
-                                                                wasm_output = wasm_output.trim().to_string();
-                                                                if wasm_output.is_empty() {
-                                                                    wasm_output = "[No Output Generated]".to_string();
-                                                                }
+                                                let wasi = builder.build_p1();
+                                                let mut store = wasmtime::Store::new(&engine, wasi);
+                                                let _ = store.set_fuel(u64::MAX);
 
-                                                                pipe_data = wasm_output;
+                                                match wasmtime::Module::new(&engine, &wasm_bytes) {
+                                                    Ok(module) => {
+                                                        if let Ok(instance) = linker.instantiate(&mut store, &module) {
+                                                            let start_func = instance.get_typed_func::<(), ()>(&mut store, "_start")
+                                                                .unwrap_or_else(|_| instance.get_typed_func::<(), ()>(&mut store, "").unwrap());
 
-                                                                if is_last {
-                                                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Pipeline Sandbox Execution Complete.")));
-                                                                    let success_html = format!("
-                                                                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
-                                                                            <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Sandbox Execution Complete</h1>
-                                                                            <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:650px; margin-top:20px; width: 100%; box-shadow: 0 0 15px #00ff4111;'>
-                                                                                <p style='color:#888;'>Pipeline Target: <span style='color:#fff;'>{}</span></p>
-                                                                                <p style='color:#888;'>Payload Size: <span style='color:#ffcc00;'>{} bytes</span></p>
-                                                                                <p style='color:#888;'>Arguments Passed: <span style='color:#fff;'>{}</span></p>
-                                                                                <hr style='border:1px dashed #333; margin:15px 0;'>
-                                                                                <div style='background:#000; border:1px solid #00ff41; padding:20px; margin-top:10px; max-height: 400px; overflow-y: auto;'>
-                                                                                    <span style='color:#888; font-size:10px;'>[PIPELINE FINAL OUTPUT]</span><br><br>
-                                                                                    <span style='color:#00ff41; font-size:16px; white-space: pre-wrap; line-height:1.5;'>{}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    ", wasm_url, wasm_bytes.len(), wasm_args, pipe_data);
+                                                            let _ = start_func.call(&mut store, ());
 
-                                                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: "isobrowse://sandbox/pipeline".to_string(), cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
-                                                                }
+                                                            let output_bytes = stdout_pipe.contents();
+                                                            let mut wasm_output = String::from_utf8_lossy(&output_bytes).to_string();
+
+                                                            wasm_output = wasm_output.trim().to_string();
+                                                            if wasm_output.is_empty() { wasm_output = "[No Output Generated]".to_string(); }
+                                                            pipe_data = wasm_output;
+
+                                                            if is_last {
+                                                            
+let is_chart = pipe_data.contains("\"iso_chart\": true");
+
+let success_html = if is_chart {
+    format!("
+    <html><head>
+        <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+        <style>
+            body {{ background:#050505; color:#fff; font-family:monospace; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0; padding: 20px; height: 100vh; box-sizing: border-box; }}
+        </style>
+    </head><body>
+        <h1 id='chartTitle' style='color:#00ccff; text-shadow: 0 0 10px #00ccff55; margin-bottom: 20px;'>⚡ Analyzing Data...</h1>
+        <div style='background:#111; border:1px solid #333; padding:20px; width:100%; max-width:900px; height:60vh; min-height: 400px; box-shadow: 0 0 15px rgba(255,255,255,0.05); position:relative; border-radius: 8px;'>
+            <canvas id='myChart'></canvas>
+        </div>
+        <div id='debug' style='color: #ff3366; margin-top: 10px; font-size: 12px;'></div>
+        
+        <script id='chart-data' type='application/json'>{}</script>
+        
+        <script>
+            try {{
+                const rawText = document.getElementById('chart-data').textContent;
+                const wsData = JSON.parse(rawText);
+                
+                document.getElementById('chartTitle').innerText = '⚡ ' + (wsData.title || 'Analysis Complete');
+                const ctx = document.getElementById('myChart');
+                new Chart(ctx, {{
+                    type: wsData.chart_type || 'bar',
+                    data: {{
+                        labels: wsData.labels,
+                        datasets: [{{
+                            label: wsData.dataset_name || 'Data Set',
+                            data: wsData.data,
+                            backgroundColor: wsData.color_main || 'rgba(0, 255, 65, 0.5)',
+                            borderColor: wsData.color_border || '#00ff41',
+                            borderWidth: 2,
+                            borderRadius: 5
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {{ y: {{ beginAtZero: true, ticks: {{ color: '#aaa' }} }}, x: {{ ticks: {{ color: '#aaa' }} }} }},
+                        plugins: {{ legend: {{ labels: {{ color: '#fff' }} }}, title: {{ display: true, text: wsData.title, color: '#00ccff', font: {{ size: 18 }} }} }}
+                    }}
+                }});
+            }} catch(e) {{ document.getElementById('debug').innerText = 'Chart Parse Error: ' + e; }}
+        </script>
+    </body></html>
+    ", pipe_data)
+} else {
+    format!("
+    <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+        <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Sandbox Execution Complete</h1>
+        <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #00ff4111;'>
+            <div style='background:#000; border:1px solid #00ff41; padding:20px; max-height: 400px; overflow-y: auto;'>
+                <div style='color:#00ff41; font-size:19px; line-height:1.6; letter-spacing:0.5px; white-space: pre-wrap;'>{}</div>
+            </div>
+        </div>
+    </div>", pipe_data)
+};
+
+let target_url = if is_chart { "isobrowse://sandbox/chart".to_string() } else { "isobrowse://sandbox/pipeline".to_string() };
+let _ = p_i.send_event(UserEvent::WasmSurfRender { html: success_html, url: target_url, cpu_ms: start_time.elapsed().as_millis(), ram_kb: final_ram_kb, blocked_count: 0 });
+
                                                             }
-                                                        },
-                                                        Err(e) => {
-                                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: WASM Compilation failed: {}", e)));
-                                                            break;
                                                         }
+                                                    },
+                                                    Err(e) => {
+                                                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: WASM Compilation failed: {}", e)));
+                                                        let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>WASM Engine Compilation Failed:<br>{}</p></div>", e);
+                                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
+                                                        break;
                                                     }
                                                 }
                                             }
                                         },
                                         Err(e) => {
-                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Fetch failed: {}", e)));
+                                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Worker Download failed: {}", e)));
+                                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 PIPELINE ERROR</h2><p>Download Failed (Are you offline or is the link broken?):<br>{}</p></div>", e);
+                                            let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
                                             break;
                                         }
                                     }
                                 } else {
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Unknown pipeline command: {}", cmd)));
+                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Invalid command. Use /nojs, /run, /get, etc.")));
+                                    let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 COMMAND NOT FOUND</h2><p>Terminal did not understand the input: {}<br>Use <b>/help</b> to see available pipeline commands.</p></div>", cmd);
+                                    let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
                                     break;
                                 }
                             }
-                            return; // The pipeline has finished its job, close the thread before going to normal surf.
-                        }
-
-                        // =========================================================
-                        // 2. TASK ENGINE (V.I.P BYPASS - Static Tasks)
-                        // =========================================================
-                        if raw_input == "/news" || raw_input == "/crypto" || raw_input == "/game" {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [TASK ENGINE]: Intercepted intent '{}'. Synthesizing data...", raw_input)));
-                            
-                            let mut synthesized_html = String::new();
-                            
-                            if raw_input == "/game" {
-                                let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Booting local WASM gaming environment...".to_string()));
-                                synthesized_html.push_str(r#"
-                                    <style>
-                                        body { background: #050505; color: #00ff41; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-                                        canvas { border: 2px solid #00ff41; box-shadow: 0 0 15px #00ff4155; background: #0a0a0a; margin-top: 20px; }
-                                        h1 { color: #00ccff; margin-bottom: 5px; text-shadow: 0 0 10px #00ccff55; }
-                                        #score { font-size: 20px; font-weight: bold; color: #ffcc00; }
-                                    </style>
-                                    <div>
-                                        <h1>⚡ IsoBrowse Cyber-Snake</h1>
-                                        <div id="score">SCORE: 0</div>
-                                        <canvas id="gameCanvas" width="400" height="400"></canvas>
-                                        <p style="color:#888; margin-top:15px; text-align:center;">Use ARROW KEYS to move.</p>
-                                    </div>
-                                    <script>
-                                        const canvas = document.getElementById('gameCanvas');
-                                        const ctx = canvas.getContext('2d');
-                                        const gridSize = 20;
-                                        let snake = [{x: 200, y: 200}];
-                                        let food = {x: 100, y: 100};
-                                        let dx = 0; let dy = 0;
-                                        let score = 0;
-
-                                        function draw() {
-                                            ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                            
-                                            ctx.fillStyle = '#00ccff';
-                                            ctx.shadowBlur = 10;
-                                            ctx.shadowColor = '#00ccff';
-                                            ctx.fillRect(food.x, food.y, gridSize, gridSize);
-                                            
-                                            ctx.fillStyle = '#00ff41';
-                                            ctx.shadowBlur = 10;
-                                            ctx.shadowColor = '#00ff41';
-                                            snake.forEach((part) => {
-                                                ctx.fillRect(part.x, part.y, gridSize - 2, gridSize - 2);
-                                            });
-                                            ctx.shadowBlur = 0;
-
-                                            let head = {x: snake[0].x + dx, y: snake[0].y + dy};
-                                            
-                                            if(head.x >= canvas.width) head.x = 0;
-                                            if(head.x < 0) head.x = canvas.width - gridSize;
-                                            if(head.y >= canvas.height) head.y = 0;
-                                            if(head.y < 0) head.y = canvas.height - gridSize;
-
-                                            for(let i=1; i<snake.length; i++) {
-                                                if(head.x === snake[i].x && head.y === snake[i].y && (dx !== 0 || dy !== 0)) {
-                                                    score = 0;
-                                                    document.getElementById('score').innerText = 'SYSTEM FAILURE - REBOOTING...';
-                                                    snake = [{x: 200, y: 200}];
-                                                    dx = 0; dy = 0;
-                                                    return;
-                                                }
-                                            }
-
-                                            snake.unshift(head);
-
-                                            if(head.x === food.x && head.y === food.y) {
-                                                score += 10;
-                                                document.getElementById('score').innerText = 'SCORE: ' + score;
-                                                food = {
-                                                    x: Math.floor(Math.random() * (canvas.width/gridSize)) * gridSize,
-                                                    y: Math.floor(Math.random() * (canvas.height/gridSize)) * gridSize
-                                                };
-                                            } else {
-                                                if(dx !== 0 || dy !== 0) snake.pop();
-                                            }
-                                        }
-
-                                        window.addEventListener('keydown', e => {
-                                            if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
-                                                e.preventDefault(); 
-                                            }
-                                            if(e.key === 'ArrowUp' && dy === 0) { dx = 0; dy = -gridSize; }
-                                            if(e.key === 'ArrowDown' && dy === 0) { dx = 0; dy = gridSize; }
-                                            if(e.key === 'ArrowLeft' && dx === 0) { dx = -gridSize; dy = 0; }
-                                            if(e.key === 'ArrowRight' && dx === 0) { dx = gridSize; dy = 0; }
-                                        });
-                                        
-                                        window.addEventListener('message', e => {
-                                            if(e.data && e.data.type === 'FORWARD_KEY') {
-                                                let k = e.data.key;
-                                                if(k === 'ArrowUp' && dy === 0) { dx = 0; dy = -gridSize; }
-                                                if(k === 'ArrowDown' && dy === 0) { dx = 0; dy = gridSize; }
-                                                if(k === 'ArrowLeft' && dx === 0) { dx = -gridSize; dy = 0; }
-                                                if(k === 'ArrowRight' && dx === 0) { dx = gridSize; dy = 0; }
-                                            }
-                                        });
-
-                                        setInterval(draw, 100);
-                                    </script>
-                                "#);
-                            } else {
-                                synthesized_html.push_str(&format!("
-                                    <style>
-                                        body {{ background: #050505; margin: 0; padding: 0; font-family: monospace; }}
-                                        a {{ color: #00ccff; text-decoration: none; font-weight: bold; transition: color 0.2s; }}
-                                        a:hover {{ color: #00ff41; text-decoration: underline; }}
-                                        ul {{ list-style-type: square; color: #555; }}
-                                    </style>
-                                    <div style='padding: 40px; color: #00ff41; min-height: 100vh;'>
-                                        <div style='border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff4122; background: #0a0a0a;'>
-                                            <h1 style='color: #00ccff; border-bottom: 2px solid #00ccff; padding-bottom: 10px; margin-top: 0;'>⚡ IsoBrowse Pipeline: Task Engine</h1>
-                                            <p style='color: #888; font-size: 14px;'>Target intent: <strong style='color:#fff;'>{}</strong><br>Status: Aggregated, sanitized, and isolated without WASM parsing.</p>
-                                ", raw_input));
-
-                                if raw_input == "/news" {
-                                    let mut news_count = 0;
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Scraping Source 1 (NPR News)...".to_string()));
-                                    
-                                    synthesized_html.push_str("<h2 style='color: #fff; margin-top: 30px;'>🌍 Global News <span style='color:#555; font-size:14px;'>| Source: NPR</span></h2><ul>");
-                                    if let Ok(resp) = client.get("https://text.npr.org/").send() {
-                                        if let Ok(text) = resp.text() {
-                                            let parts: Vec<&str> = text.split("<li><a href=\"").collect();
-                                            for part in parts.iter().skip(1).take(5) { 
-                                                if let Some(quote_idx) = part.find('"') {
-                                                    let link = &part[..quote_idx];
-                                                    if let Some(gt_idx) = part.find('>') {
-                                                        let rest = &part[gt_idx + 1..];
-                                                        if let Some(end_a) = rest.find("</a>") {
-                                                            news_count += 1;
-                                                            let title = &rest[..end_a];
-                                                            let final_link = if link.starts_with('/') { format!("https://text.npr.org{}", link) } else { link.to_string() };
-                                                            let safe_a = format!("<a href='{}'>{}</a>", final_link, title);
-                                                            synthesized_html.push_str(&format!("<li style='margin-bottom: 10px; font-size: 16px;'>{}</li>", safe_a));
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    synthesized_html.push_str("</ul>");
-
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Scraping Tech News...".to_string()));
-                                    synthesized_html.push_str("<h2 style='color: #fff; margin-top: 30px;'>💻 Tech & Security <span style='color:#555; font-size:14px;'>| Source: YCombinator</span></h2><ul>");
-                                    if let Ok(resp) = client.get("https://news.ycombinator.com/").send() {
-                                        if let Ok(text) = resp.text() {
-                                            let parts: Vec<&str> = text.split("<span class=\"titleline\">").collect();
-                                            for part in parts.iter().skip(1).take(5) {
-                                                if let Some(href_start) = part.find("href=\"") {
-                                                    let rest1 = &part[href_start + 6..];
-                                                    if let Some(href_end) = rest1.find('"') {
-                                                        let link = &rest1[..href_end];
-                                                        if let Some(gt_idx) = rest1.find('>') {
-                                                            let rest2 = &rest1[gt_idx + 1..];
-                                                            if let Some(end_a) = rest2.find("</a>") {
-                                                                news_count += 1;
-                                                                let title = &rest2[..end_a];
-                                                                let mut final_link = link.replace("item?id=", "https://news.ycombinator.com/item?id=");
-                                                                if final_link.starts_with('/') {
-                                                                    final_link = format!("https://news.ycombinator.com{}", final_link);
-                                                                }
-                                                                let safe_a = format!("<a href='{}'>{}</a>", final_link, title);
-                                                                synthesized_html.push_str(&format!("<li style='margin-bottom: 10px; font-size: 16px;'>{}</li>", safe_a));
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    if news_count == 0 {
-                                        let offline1 = format!("<a href='https://news.ycombinator.com'>Show HN: IsoBrowse MVP - WASM based browser</a>");
-                                        let offline2 = format!("<a href='https://news.ycombinator.com'>Rust 1.76 released</a>");
-                                        synthesized_html.push_str(&format!("<li style='margin-bottom: 10px; font-size: 16px;'>{}</li>", offline1));
-                                        synthesized_html.push_str(&format!("<li style='margin-bottom: 10px; font-size: 16px;'>{}</li>", offline2));
-                                    }
-                                    synthesized_html.push_str("</ul>");
-
-                                } else if raw_input == "/crypto" {
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal("> [TASK ENGINE]: Fetching market telemetry...".to_string()));
-                                    let mut crypto_count = 0;
-                                    
-                                    synthesized_html.push_str("<h2 style='color: #fff; margin-top: 30px;'>📈 Live Crypto Prices <span style='color:#555; font-size:14px;'>| Source: CoinCap API</span></h2><ul>");
-                                    if let Ok(resp) = client.get("https://api.coincap.io/v2/assets?limit=5").send() {
-                                        if let Ok(text) = resp.text() {
-                                            let parts: Vec<&str> = text.split("\"id\":\"").collect();
-                                            for part in parts.iter().skip(1) {
-                                                let name = part.split("\"").next().unwrap_or("Unknown");
-                                                if let Some(price_idx) = part.find("\"priceUsd\":\"") {
-                                                    let price_str = &part[price_idx + 12 ..];
-                                                    let price = price_str.split("\"").next().unwrap_or("0");
-                                                    let price_fmt: String = price.chars().take(8).collect();
-                                                    synthesized_html.push_str(&format!("<li style='margin-bottom: 10px; font-size: 18px; text-transform: capitalize;'><strong style='color:#ffcc00;'>{}</strong>: ${}</li>", name, price_fmt));
-                                                    crypto_count += 1;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    if crypto_count == 0 {
-                                        synthesized_html.push_str("<li style='margin-bottom: 10px; font-size: 18px;'><strong style='color:#ffcc00;'>Bitcoin</strong>: $82,450.00 <span style='color:#ff3366;font-size:12px;'>(Source: Offline Secure Cache)</span></li>");
-                                        synthesized_html.push_str("<li style='margin-bottom: 10px; font-size: 18px;'><strong style='color:#ffcc00;'>Ethereum</strong>: $3,120.50 <span style='color:#ff3366;font-size:12px;'>(Source: Offline Secure Cache)</span></li>");
-                                        synthesized_html.push_str("<li style='margin-bottom: 10px; font-size: 18px;'><strong style='color:#ffcc00;'>Solana</strong>: $145.20 <span style='color:#ff3366;font-size:12px;'>(Source: Offline Secure Cache)</span></li>");
-                                    }
-                                    synthesized_html.push_str("</ul>");
-                                }
-
-                                synthesized_html.push_str("</div></div>");
-                            }
-
-                            let interceptor = r#"<script>
-                                document.addEventListener('click', function(e) {
-                                    const target = e.target.closest('a');
-                                    if (target) {
-                                        let link = target.href; 
-                                        if (link && !link.startsWith('javascript:') && !link.startsWith('#')) {
-                                            e.preventDefault(); e.stopPropagation();
-                                            window.top.postMessage({type: 'SURF_NAVIGATE', url: link}, '*');
-                                        }
-                                    }
-                                }, true);
-
-                                function ghostImageEngine() {
-                                    document.querySelectorAll('img').forEach(img => {
-                                        let dSrc = img.getAttribute('data-src') || img.getAttribute('data-original');
-                                        if (dSrc && img.getAttribute('src') !== dSrc) {
-                                            img.setAttribute('src', dSrc);
-                                        }
-                                        img.setAttribute('loading', 'eager');
-                                    });
-
-                                    document.querySelectorAll('.iso-noscript').forEach(ns => {
-                                        let prev = ns.previousElementSibling;
-                                        if (prev && (prev.tagName === 'PICTURE' || prev.tagName === 'IMG' || prev.tagName === 'DIV')) {
-                                            if (!prev.classList.contains('iso-noscript')) {
-                                                prev.style.display = 'none';
-                                            }
-                                        }
-                                    });
-                                }
-
-                                ghostImageEngine();
-                                setInterval(ghostImageEngine, 500);
-
-                                setTimeout(() => {
-                                    let closeBtn = document.getElementById('iso-surf-close');
-                                    if(closeBtn) {
-                                        closeBtn.onclick = function(e) {
-                                            e.preventDefault(); e.stopPropagation();
-                                            let badge = document.getElementById('iso-surf-badge');
-                                            if(badge) badge.style.display = 'none';
-                                        };
-                                    }
-                                }, 100);
-                            </script>
-                            <div id='iso-surf-badge' style='position:fixed; bottom:20px; right:20px; background:#002200; border:1px solid #00ff41; padding:10px; color:#00ff41; font-family:monospace; z-index:999999; box-shadow:0 0 10px #00ff4155;'>
-                                <strong style='color:#fff;'>[!] SURF MODE ACTIVE</strong> <button id='iso-surf-close' style='background:transparent; border:none; color:#00ff41; cursor:pointer; float:right; font-weight:bold; font-size:14px; margin-left:15px;'>X</button><br><br>
-                                <span style='font-size:10px;'>JS and Iframes locked down.<br>If the site is empty or broken,<br>it requires Mod 2 (Native).</span>
-                            </div>
-                            "#;
-                            synthesized_html.push_str(interceptor);
-
-                            let final_url = format!("isobrowse://task{}", raw_input);
-                            let ram_footprint = synthesized_html.len() / 1024;
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SYSTEM]: Task {} executed. Rendering directly securely...", raw_input)));
-                            
-                            let _ = p_i.send_event(UserEvent::WasmSurfRender { 
-                                html: synthesized_html, 
-                                url: final_url.clone(), 
-                                cpu_ms: start_time.elapsed().as_millis(),
-                                ram_kb: ram_footprint, 
-                                blocked_count: 0
-                            });
-
-                            return; 
-                        }
-
-                        // =========================================================
-                        // 3. NOJS PIPELINE (SECURE READ/FILTER COMMAND)
-                        // =========================================================
-                        let mut final_raw_url = raw_input.to_string();
-                        if raw_input.starts_with("/nojs ") {
-                            let target_site = raw_input.strip_prefix("/nojs ").unwrap_or("").trim();
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [NOJS ENGINE]: Stripping JavaScript and sanitizing {}...", target_site)));
-                            final_raw_url = target_site.to_string();
-                        }
-
-                        let _ = p_i.send_event(UserEvent::UpdateTerminal("> [RUST]: Tunneling to target page...".to_string()));
-                        
-                        let fetch_url = if final_raw_url.starts_with("http") { final_raw_url.clone() } else if final_raw_url.starts_with("//") { format!("https:{}", final_raw_url) } else { format!("https://{}", final_raw_url) };
-
-
-                        let resp = match client.get(&fetch_url).send() {
-                            Ok(r) => r,
-                            Err(e) => { 
-                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Connection failed ({}).", e))); 
-                                return; 
-                            }
-                        };
-                        
-                        let final_url = resp.url().as_str().to_string(); 
-                        
-                        let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("text/html").to_lowercase();
-                        if content_type.contains("image/") || content_type.contains("video/") || content_type.contains("application/") || content_type.contains("audio/") {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SHIELD]: Blocked non-HTML tracking payload ({}).", content_type)));
-                            return; 
-                        }
-
-                        let raw_html = match resp.text() {
-                            Ok(t) => t,
-                            Err(_) => {
-                                let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SHIELD]: Failed to decode page payload.".to_string()));
-                                return;
-                            }
-                        };
-                        
-                        if raw_html.len() > 10 * 1024 * 1024 {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SHIELD]: Payload too large (Exceeds 10MB). Blocked to prevent crash.".to_string()));
-                            return;
-                        }
-
-                        let lower_html = raw_html.to_lowercase();
-                        let blocked_trackers = lower_html.matches("<script").count() + lower_html.matches("<iframe").count() + lower_html.matches("google-analytics").count();
-
-                        let mut is_spa = false;
-                        let mut is_antibot = false;
-                        let p_count = lower_html.matches("<p").count(); 
-
-                        if lower_html.contains("datadome") || lower_html.contains("cloudflare-") || final_url.contains("forbes.com") { is_antibot = true; }
-                        if final_url.contains("nypost.com") || final_url.contains("uniswap.org") || (lower_html.contains("id=\"root\"") && p_count < 5) { is_spa = true; }
-
-                        let mut html;
-
-                        if is_antibot || is_spa {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal("> [ALARM]: Dynamic Architecture/Bot Shield detected!".to_string()));
-                            
-                            let w_type = if is_antibot { "ANTI-BOT SHIELD DETECTED" } else { "SPA (DYNAMIC) ARCHITECTURE DETECTED" };
-                            let w_desc = if is_antibot { 
-                                "This site uses a military-grade shield (DataDome/Cloudflare) to prevent automated data extraction."
-                            } else {
-                                "This site hides or lazy-loads its content using JavaScript. Access is halted because JS is disabled in Mod 1."
-                            };
-                            
-                            let roadmap_msg = "🚀 <strong>V2.0 ROADMAP:</strong> Our advanced <em>Headless Rendering Engine</em> is currently in development to securely bypass these shields and render dynamic sites inside Surf Mode soon.";
-                            
-                            html = format!("
-                                <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#111; color:#0f0; font-family:monospace; text-align:center; padding:20px; box-sizing:border-box;'>
-                                    <h1 style='color:#ff3366; font-size:28px; margin-bottom:10px;'>🚨 {} 🚨</h1>
-                                    <p style='font-size:16px; color:#aaa; max-width:600px; line-height:1.6;'>{}</p>
-                                    <div style='margin-top:20px; background:#1a1a00; border:1px dashed #cca300; padding:12px 24px; border-radius:6px; max-width:600px; box-shadow: 0 0 10px rgba(204, 163, 0, 0.1);'>
-                                        <p style='font-size:14px; color:#ffcc00; margin:0; line-height:1.5;'>{}</p>
-                                    </div>
-                                    <div style='margin-top:30px; padding:15px 30px; border:1px solid #00ff41; background:#002200; border-radius:8px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);'>
-                                        <p style='font-size:18px; color:#fff; margin:0;'>👉 Click the <strong style='color:#00ff41;'>MOD 2 (NATIVE)</strong> button on the top right to continue.</p>
-                                    </div>
-                                </div>
-                            ", w_type, w_desc, roadmap_msg);
                         } else {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal("> [WASM]: Shredding spy scripts and trackers...".to_string()));
-                            
-                            html = raw_html
-                                .replace("<script", "<template").replace("<SCRIPT", "<template")
-                                .replace("</script>", "</template>").replace("</SCRIPT>", "</template>")
-                                .replace("<iframe", "<template").replace("<IFRAME", "<template")
-                                .replace("</iframe>", "</template>").replace("</IFRAME>", "</template>");
-
-                            html = html
-                                .replace("<noscript", "<div class=\"iso-noscript\"").replace("<NOSCRIPT", "<div class=\"iso-noscript\"")
-                                .replace("</noscript>", "</div>").replace("</NOSCRIPT>", "</div>");
-
-                            html = html.replace("http-equiv=\"Content-Security-Policy\"", "name=\"Disabled-CSP\"")
-                                       .replace("http-equiv='Content-Security-Policy'", "name='Disabled-CSP'")
-                                       .replace("http-equiv=\"refresh\"", "name=\"disabled-refresh\"")
-                                       .replace("http-equiv='refresh'", "name='disabled-refresh'");
-                        }
-
-                        let ram_footprint = html.len() / 1024;
-
-                        let mut config = wasmtime::Config::new();
-                        config.consume_fuel(true);
-                        config.static_memory_maximum_size(500 * 1024 * 1024);
-                        
-                        let engine = wasmtime::Engine::new(&config).unwrap();
-                        let mut linker = wasmtime::Linker::<WasiP1Ctx>::new(&engine);
-                        preview1::add_to_linker_sync(&mut linker, |t| t).unwrap();
-
-                        let pr = p_i.clone();
-                        let f_url = final_url.clone();
-                        
-                        linker.func_wrap("env", "render_html", move |mut c: wasmtime::Caller<'_, WasiP1Ctx>, ptr: i32, len: i32| {
-                            let mem = c.get_export("memory").unwrap().into_memory().unwrap();
-                            let mut d = vec![0u8; len as usize]; mem.read(&c, ptr as usize, &mut d).unwrap();
-                            
-                            let final_output = String::from_utf8_lossy(&d).to_string();
-
-                            let _ = pr.send_event(UserEvent::WasmSurfRender { 
-                                html: final_output, url: f_url.clone(), cpu_ms: start_time.elapsed().as_millis(),
-                                ram_kb: ram_footprint, blocked_count: blocked_trackers
-                            });
-                        }).unwrap();
-
-                        linker.func_wrap("env", "send_to_ui", |_c: wasmtime::Caller<'_, WasiP1Ctx>, _ptr: i32, _len: i32| {}).unwrap();
-
-                        let wasi = wasmtime_wasi::WasiCtxBuilder::new().build_p1();
-                        let mut store = wasmtime::Store::new(&engine, wasi);
-                        store.set_fuel(u64::MAX).unwrap(); 
-
-                        let module = wasmtime::Module::from_binary(&engine, WASM_ENGINE_GHOST).unwrap();
-                        let instance = linker.instantiate(&mut store, &module).unwrap();
-
-                        let alloc = instance.get_typed_func::<i32, i32>(&mut store, "alloc").unwrap();
-                        let on_d = instance.get_typed_func::<(i32, i32), ()>(&mut store, "on_data_received").unwrap();
-
-                        let h_b = html.as_bytes();
-                        
-                        let h_p = match alloc.call(&mut store, h_b.len() as i32) {
-                            Ok(p) => p,
-                            Err(_) => {
-                                let _ = p_i.send_event(UserEvent::UpdateTerminal("> [SHIELD]: Payload rendering aborted to prevent memory overflow.".to_string()));
-                                return;
-                            }
-                        };
-                        
-                        instance.get_memory(&mut store, "memory").unwrap().write(&mut store, h_p as usize, h_b).unwrap();
-                        let _ = on_d.call(&mut store, (h_p, h_b.len() as i32));
-                    });
-                }
-
-                if msg.starts_with("CHECK_DOMAIN:") {
-                    let raw_domain = msg.replace("CHECK_DOMAIN:", "");
-                    let p_i = proxy.clone();
-                    let client = Arc::clone(&http_client);
-                    
-                    thread::spawn(move || {
-                        let parts: Vec<&str> = raw_domain.split('.').collect();
-                        let root_domain = if raw_domain.ends_with(".tr") || raw_domain.ends_with(".uk") || raw_domain.ends_with(".au") || raw_domain.ends_with(".br") {
-                            if parts.len() >= 3 { format!("{}.{}.{}", parts[parts.len()-3], parts[parts.len()-2], parts[parts.len()-1]) } else { raw_domain.clone() }
-                        } else {
-                            if parts.len() >= 2 { format!("{}.{}", parts[parts.len()-2], parts[parts.len()-1]) } else { raw_domain.clone() }
-                        };
-
-                        if root_domain.len() < 3 { return; }
-
-                        let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [INTEL]: {} is being queried in WHOIS database...", root_domain)));
-
-                        let api_url = format!("https://networkcalc.com/api/dns/whois/{}", root_domain);
-                        if let Ok(resp) = client.get(&api_url).send() {
-                            let json_text = resp.text().unwrap_or_default();
-                            let lower_json = json_text.to_lowercase();
-                            
-                            if lower_json.contains("\"status\":\"no_records\"") || lower_json.contains("\"status\": \"no_records\"") {
-                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [INTEL]: Age query for {} cannot be performed due to national cyber protection protocols.", root_domain)));
-                                return;
-                            }
-                            
-                            let mut year = 0;
-                            let mut date_display = String::new();
-                            let months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                            
-                            let keywords = ["creat", "regist"];
-                            
-                            for kw in keywords.iter() {
-                                let mut start_idx = 0;
-                                while let Some(idx) = lower_json[start_idx..].find(kw) {
-                                    let abs_idx = start_idx + idx;
-                                    let snippet: String = lower_json[abs_idx..].chars().take(150).collect();
-                                    
-                                    let tokens: Vec<&str> = snippet.split(|c: char| !c.is_alphanumeric()).filter(|s| !s.is_empty()).collect();
-                                    
-                                    for i in 0..tokens.len() {
-                                        if tokens[i].len() == 4 {
-                                            if let Ok(y) = tokens[i].parse::<i32>() {
-                                                if y >= 1985 && y <= 2026 {
-                                                    year = y;
-                                                    if i + 1 < tokens.len() {
-                                                        if let Ok(m) = tokens[i+1].parse::<i32>() {
-                                                            if m >= 1 && m <= 12 { date_display = format!("{} {}", months[m as usize], year); }
-                                                        }
-                                                    }
-                                                    if date_display.is_empty() { date_display = year.to_string(); }
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if year > 0 { break; } 
-                                    start_idx = abs_idx + kw.len(); 
-                                }
-                                if year > 0 { break; } 
-                            }
-
-                            if year > 0 {
-                                if year >= 2024 {
-                                    let alarm_msg = format!("> [ALARM]: DOMAIN IS TOO NEW (Reg: {})! HIGH Drainer/Phishing risk!", date_display);
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(alarm_msg.clone()));
-                                    
-                                    let js_warn = format!("
-                                        if(document.getElementById('isobrowse-shadow-host')) {{
-                                            const shadow = document.getElementById('isobrowse-shadow-host').shadowRoot;
-                                            shadow.getElementById('iso-terminal').style.color = '#ff3366';
-                                            shadow.getElementById('iso-terminal').style.fontWeight = 'bold';
-                                            shadow.getElementById('iso-terminal').innerText = '{}';
-                                            shadow.getElementById('iso-engine-status').innerText = '🚨 SCAM RISK!';
-                                            shadow.getElementById('iso-engine-status').className = 'iso-alarm-active';
-                                            shadow.getElementById('panel').style.borderBottom = '2px solid #ff3366';
-                                        }}
-                                    ", alarm_msg);
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(js_warn));
-                                } else {
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [SAFE]: Domain is established and reliable (Reg: {}).", date_display)));
-                                    let js_safe = "
-                                        if(document.getElementById('isobrowse-shadow-host')) {
-                                            const shadow = document.getElementById('isobrowse-shadow-host').shadowRoot;
-                                            shadow.getElementById('iso-terminal').style.color = '#00ff41'; 
-                                            shadow.getElementById('iso-terminal').style.fontWeight = 'normal';
-                                        }
-                                    ".to_string();
-                                    let _ = p_i.send_event(UserEvent::UpdateTerminal(js_safe));
-                                }
-                            } else {
-                                let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [INTEL]: {} records are masked by GDPR/Privacy Protection protocols.", root_domain)));
-                            }
-                        } else {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal("> [INTEL]: Failed to connect to WHOIS API server.".to_string()));
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Invalid command. Use /nojs <url> to view websites safely.")));
+                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 COMMAND NOT FOUND</h2><p>IsoBrowse is a Zero-Trust Pipeline Terminal.<br>To view a website safely, you must use the <b>/nojs</b> command.<br><br>Example: <i>/nojs {}</i></p></div>", raw_input);
+                            let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
                         }
                     });
                 }
@@ -1238,7 +1283,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::UserEvent(UserEvent::WasmSurfRender { html, url, cpu_ms, ram_kb, blocked_count }) => {
                 
                 let fallback_css = "<style>
-                    /* AD AND GARBAGE DESTROYER */
                     .ad, .ads, .ad-slot, .ad-container, [id^='ad-'], [class^='ad-'],
                     [class*='taboola'], [class*='outbrain'],
                     [class*='popup'], [id*='popup'], [class*='modal'], [id*='modal'],
@@ -1247,92 +1291,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .fc-consent-root, #cmpbox,
                     .sp_veil, [id^='sp_message'], .fc-ab-root, .privacy-prompt, #privacy-prompt,
                     .veil, .backdrop, .dialog-backdrop, [class*='backdrop'] {
-                        display: none !important;
-                        visibility: hidden !important;
-                        opacity: 0 !important;
-                        pointer-events: none !important;
-                        width: 0 !important;
-                        height: 0 !important;
-                        position: absolute !important;
-                        z-index: -9999 !important;
+                        display: none !important; visibility: hidden !important; opacity: 0 !important;
                     }
-
                     html, body { overflow: auto !important; position: static !important; }
                     template, style, script, title, link, meta { display: none !important; opacity: 0 !important; visibility: hidden !important; }
-
-                    /* VISUAL PROTECTION */
-                    .iso-noscript { 
-                        display: block !important; 
-                        opacity: 1 !important; 
-                        visibility: visible !important; 
-                    }
-                    .iso-noscript img { 
-                        opacity: 1 !important; 
-                        visibility: visible !important; 
-                        max-width: 100% !important; 
-                        height: auto !important; 
-                        display: block !important;
-                    }
-
-                    /* 💥 SURF CURSOR AND SHIELD 💥 */
-                    html, body, * {
-                        cursor: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20' font-size='20'>🏄</text></svg>\"), auto !important;
-                    }
+                    .iso-noscript { display: block !important; opacity: 1 !important; visibility: visible !important; }
                 </style>";
-
-                let interceptor = r#"<script>
-                    document.addEventListener('click', function(e) {
-                        const target = e.target.closest('a');
-                        if (target) {
-                            let link = target.href; 
-                            if (link && !link.startsWith('javascript:') && !link.startsWith('#')) {
-                                e.preventDefault(); e.stopPropagation();
-                                window.top.postMessage({type: 'SURF_NAVIGATE', url: link}, '*');
-                            }
-                        }
-                    }, true);
-
-                    function ghostImageEngine() {
-                        document.querySelectorAll('img').forEach(img => {
-                            let dSrc = img.getAttribute('data-src') || img.getAttribute('data-original');
-                            if (dSrc && img.getAttribute('src') !== dSrc) {
-                                img.setAttribute('src', dSrc);
-                            }
-                            img.setAttribute('loading', 'eager');
-                        });
-
-                        document.querySelectorAll('.iso-noscript').forEach(ns => {
-                            let prev = ns.previousElementSibling;
-                            if (prev && (prev.tagName === 'PICTURE' || prev.tagName === 'IMG' || prev.tagName === 'DIV')) {
-                                if (!prev.classList.contains('iso-noscript')) {
-                                    prev.style.display = 'none';
-                                }
-                            }
-                        });
-                    }
-
-                    ghostImageEngine();
-                    setInterval(ghostImageEngine, 500);
-
-                    setTimeout(() => {
-                        let closeBtn = document.getElementById('iso-surf-close');
-                        if(closeBtn) {
-                            closeBtn.onclick = function(e) {
-                                e.preventDefault(); e.stopPropagation();
-                                let badge = document.getElementById('iso-surf-badge');
-                                if(badge) badge.style.display = 'none';
-                            };
-                        }
-                    }, 100);
-                </script>
-                <div id='iso-surf-badge' style='position:fixed; bottom:20px; right:20px; background:#002200; border:1px solid #00ff41; padding:10px; color:#00ff41; font-family:monospace; z-index:999999; box-shadow:0 0 10px #00ff4155;'>
-                    <strong style='color:#fff;'>[!] SURF MODE ACTIVE</strong> <button id='iso-surf-close' style='background:transparent; border:none; color:#00ff41; cursor:pointer; float:right; font-weight:bold; font-size:14px; margin-left:15px;'>X</button><br><br>
-                    <span style='font-size:10px;'>JS and Iframes locked down.<br>If the site is empty or broken,<br>it requires Mod 2 (Native).</span>
-                </div>
-                "#;
                 
                 let base_tag = format!("<base href=\"{}\" target=\"_self\">", url);
-                let final_srcdoc = format!("{}\n{}\n{}\n{}", base_tag, fallback_css, html, interceptor);
+                let final_srcdoc = format!("{}\n{}\n{}", base_tag, fallback_css, html);
                 
                 let js = format!("window.renderSurfMode({}, '{}', {}, {}, {})", 
                     serde_json::to_string(&final_srcdoc).unwrap(), url, cpu_ms, ram_kb, blocked_count);
