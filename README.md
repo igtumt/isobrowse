@@ -159,12 +159,6 @@ Input → Pipeline → WASM → Output
 
 Everything runs in memory.
 
----
-
-## ⚖️ Limitations
-
-* Not a full browser (no SPA support yet)
-* WASM ecosystem is still growing
 
 ---
 
@@ -187,6 +181,21 @@ It turned into something I use daily.
 Maybe it’s useful for you too.
 
 > A safe place to run data.
+
+---
+
+## ⚖️ Limitations
+
+* **Text & Data Only:** Works with text, JSON, HTML, and basic math. No 3D, graphics, or heavy UI.  
+* **Not a full browser:** No SPAs. Just fetch & process raw data.  
+* **Sandboxed:** Modules cannot touch local files or make network calls—only what you pipe in.  
+* **Experimental:** Built as a personal experiment. ~80 modules exist, but edge cases may break.
+
+## 🤝 Community & Future
+
+IsoBrowse started as my personal tool for safe, local data pipelines.  
+It works for me daily, and I hope the community can help improve it.  
+Contributions, feedback, and PRs are welcome!
 
 ---
 
