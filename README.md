@@ -123,14 +123,14 @@ fn main() {
 ### 3. Build to WASM
 
 ```
-rustup target add wasm32-wasi
-cargo build --target wasm32-wasi --release
+rustup target add wasm32-wasip1
+cargo build --target wasm32-wasip1 --release
 ```
 
 Output:
 
 ```
-target/wasm32-wasi/release/mytool.wasm
+target/wasm32-wasip1/release/mytool.wasm
 ```
 
 ### 4. Run it
