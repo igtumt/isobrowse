@@ -1,5 +1,9 @@
 <img width="1512" height="964" alt="isobrowse_new_frontpage" src="https://github.com/user-attachments/assets/66b1b670-df9a-4571-9e71-89e7264ee1f9" />
 
+
+https://github.com/user-attachments/assets/2a91ad9c-3496-4ae5-b008-4a8ef73a3939
+
+
 # IsoBrowse
 
 A simple, local-first WebAssembly (WASM) pipeline runtime.
