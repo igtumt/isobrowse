@@ -1,0 +1,12 @@
+[package]
+name = "runtime_surf"
+version = "2.8.5"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Şimdilik bağımlılık yok, saf Rust!
+

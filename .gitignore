@@ -1,0 +1,17 @@
+# Rust
+target/
+Cargo.lock
+
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.DS_Store
+*.nosync
+.env
+*.app
+*.app/
+*.dmg
