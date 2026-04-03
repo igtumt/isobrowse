@@ -1,6 +1,6 @@
 # IsoBrowse
 
-A simple, local-first WebAssembly (WASM) pipeline runtime.
+Experimental Local-first WebAssembly (WASM) Pipeline Runtime
 
 Not a browser.  
 Not a CLI.  
@@ -24,11 +24,15 @@ HELLO WORLD
 ```
 
 ```bash
-/get https://api.example.com | /run jq "name"
+/get https://jsonplaceholder.typicode.com/posts | /run jq "0.title"
 ```
 
 ```bash
 /echo "print('hello')" | /run python
+```
+
+```bash
+/read ~/Desktop/server.log | /run grep "CRITICAL"
 ```
 
 ---
@@ -42,7 +46,7 @@ Everything is a simple flow:
 * `/run` → executes a WASM tool
 * `|` → connects everything
 
-<img width="1512" height="972" alt="codex" src="[https://github.com/user-attachments/assets/0c0e3586-1bac-41c8-b454-0e8194173293](https://github.com/user-attachments/assets/0c0e3586-1bac-41c8-b454-0e8194173293)" />
+<img width="1512" height="972" alt="Image" src="https://github.com/user-attachments/assets/173081a3-7753-416e-972e-3eabdc19239b" />
 
 ---
 
@@ -55,7 +59,7 @@ Working with data usually means:
 IsoBrowse takes a different approach:
 * **Local-first:** your data never leaves your machine
 * **Sandboxed:** tools run in isolated WASM containers
-* **No setup:** if IsoBrowse runs, tools run
+* **No setup:** no install, no dependencies — run tools instantly
 * **Composable:** everything works through pipelines
 
 ---
@@ -119,6 +123,8 @@ cargo build --target wasm32-wasip1 --release
 ## 🎬 Demo
 
 [https://github.com/user-attachments/assets/2a91ad9c-3496-4ae5-b008-4a8ef73a3939](https://github.com/user-attachments/assets/2a91ad9c-3496-4ae5-b008-4a8ef73a3939)
+
+https://github.com/user-attachments/assets/dd4698f0-7034-48f9-8270-5e3a17363207
 
 ---
 
