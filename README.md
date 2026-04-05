@@ -121,7 +121,7 @@ cargo build --target wasm32-wasip1 --release
 
 ## 🎬 Demo
 
-https://github.com/user-attachments/assets/6c459654-8fbc-41c8-be25-930ca89d52a2
+https://github.com/user-attachments/assets/c5b9a38a-3f42-467b-b82e-3fe65e9ca52f
 
 
 ---
