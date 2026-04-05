@@ -381,9 +381,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             <div style="margin-top: 30px; display: flex; gap: 15px; color: #555; font-size: 14px; align-items: center; flex-wrap: wrap; justify-content: center;">
                                 <span>OFFICIAL WORKERS:</span>
-                                <div class="fav-btn" style="color: #4B8BBE; border: 1px dashed #4B8BBE; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run python '">🐍 Python</div>
-                                <div class="fav-btn" style="color: #CC342D; border: 1px dashed #CC342D; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run ruby-slim '">💎 Ruby</div>
-                                <div class="fav-btn" style="color: #777BB4; border: 1px dashed #777BB4; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run php-slim '">🐘 PHP</div>
+                                <div class="fav-btn" style="color: #b366ff; border: 1px dashed #b366ff; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run base64 '">🔐 Base64</div>
+                                <div class="fav-btn" style="color: #00ff41; border: 1px dashed #00ff41; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run csv2json '">📊 Csv2Json</div>
+                                <div class="fav-btn" style="color: #ff3366; border: 1px dashed #ff3366; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value += ' /run bytecount '">📏 ByteCount</div>
                                 <div class="fav-btn" style="color: #aaa; border: 1px dashed #666; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #111; transition:0.2s;" onmouseover="this.style.background='#0a0a0a'" onmouseout="this.style.background='#111'" onclick="document.getElementById('spotlight-input').value = '/upload | ' + document.getElementById('spotlight-input').value">📂 Upload</div>
                                 <div class="fav-btn" style="color: #00ccff; border: 1px solid #00ccff; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #002233; font-weight:bold; transition:0.2s;" onclick="window.openHelpModal()">[ CODEX ]</div>
                                 <div class="fav-btn" style="color: #ffcc00; border: 1px solid #ffcc00; padding: 8px 15px; border-radius: 6px; cursor: pointer; background: #332b00; font-weight:bold; transition:0.2s;" onclick="window.openExamplesModal()">[ 💡 ] EXAMPLES</div>
@@ -543,9 +543,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 <strong style="color:#00ff41; font-size: 16px;">&gt; /echo "hello isobrowse" | /run uppercase</strong>
                             </div>
                             
-                            <div data-cmd="/nojs news.ycombinator.com" style="background:#111; padding:15px; border-left:4px solid #00ccff; cursor:pointer; transition:0.2s; border-radius:4px;" onmouseover="this.style.background='#222'" onmouseout="this.style.background='#111'" onclick="window.parent.injectExample(this.getAttribute('data-cmd'))">
-                                <div style="color:#aaa; font-size:12px; margin-bottom:6px;">2. Safe Zero-Trust Web Browsing (No JS, No Trackers)</div>
-                                <strong style="color:#00ccff; font-size: 16px;">&gt; /nojs news.ycombinator.com</strong>
+                            <div data-cmd="/get news.ycombinator.com | /run htmlclean | /run linkextract | /run sort" style="background:#111; padding:15px; border-left:4px solid #00ccff; cursor:pointer; transition:0.2s; border-radius:4px;" onmouseover="this.style.background='#222'" onmouseout="this.style.background='#111'" onclick="window.parent.injectExample(this.getAttribute('data-cmd'))">
+                                <div style="color:#aaa; font-size:12px; margin-bottom:6px;">2. Extract & Sort All Links From a Website</div>
+                                <strong style="color:#00ccff; font-size: 16px;">&gt; /get news.ycombinator.com | /run htmlclean | /run linkextract | /run sort</strong>
                             </div>
                             
                             <div data-cmd="/get example.com | /run linkextract" style="background:#111; padding:15px; border-left:4px solid #ffcc00; cursor:pointer; transition:0.2s; border-radius:4px;" onmouseover="this.style.background='#222'" onmouseout="this.style.background='#111'" onclick="window.parent.injectExample(this.getAttribute('data-cmd'))">
@@ -1205,10 +1205,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 if resp.status().is_success() {
                                                     resp.bytes().map(|b| b.to_vec()).map_err(|e| e.to_string())
                                                 } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
-                                                    // İNGİLİZCE 404 HATASI
                                                     Err(format!("Module not found (404). Please verify the name: '{}'", parsed_tokens.get(0).unwrap_or(&"".to_string())))
                                                 } else {
-                                                    // İNGİLİZCE GENEL HTTP HATASI
                                                     Err(format!("HTTP Error: {}", resp.status()))
                                                 }
                                             },
@@ -1321,9 +1319,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                                     </body></html>
                                                                     ", pipe_data)
                                                                 } else {
-                                                                    // ÇÖZÜM: HTML etiketlerini zararsız hale getiriyoruz (Escape HTML)
-                                                                                                                                        // ÇÖZÜM: HTML etiketlerini zararsız hale getiriyoruz (Escape HTML)
-                                                                    // ÇÖZÜM: HTML etiketlerini zararsız hale getiriyoruz (Escape HTML)
                                                                     let safe_pipe_data = pipe_data.replace("<", "&lt;").replace(">", "&gt;");
 
                                                                     format!("

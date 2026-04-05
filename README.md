@@ -1,14 +1,14 @@
 # IsoBrowse
 
-Experimental Local-first WebAssembly (WASM) Pipeline Runtime
+Local-first WASM pipeline runtime for small data tasks.
 
 Not a browser.  
 Not a CLI.  
 Something in between.
 
-![IsoBrowse UI](https://github.com/user-attachments/assets/620a2d84-8507-437e-b03d-007396520258)
+![IsoBrowse UI](https://github.com/user-attachments/assets/a0d7d6c5-67f4-453a-aaea-89b729969ec4)
 
-> Everything you see runs locally inside a sandboxed WASM environment. IsoBrowse lets you process data securely on your own machine by chaining small, isolated WASM modules — similar to Unix pipelines.
+> Process data locally using small sandboxed WASM tools.
 
 ---
 
@@ -19,34 +19,19 @@ Something in between.
 HELLO WORLD
 ```
 
-```bash
-/get news.ycombinator.com | /run htmlclean | /run linkextract | /run sort
-```
 
 ```bash
 /get https://jsonplaceholder.typicode.com/posts | /run jq "0.title"
 ```
 
-```bash
-/echo "print('hello')" | /run python
-```
 
 ```bash
 /read ~/Desktop/server.log | /run grep "CRITICAL"
 ```
 
----
-
-## 🧠 How it works
-
-Everything is a simple flow:
-`data → pipeline → wasm → output`
-
-* `/read`, `/get`, `/echo` → provide data
-* `/run` → executes a WASM tool
-* `|` → connects everything
-
-<img width="1512" height="972" alt="Image" src="https://github.com/user-attachments/assets/173081a3-7753-416e-972e-3eabdc19239b" />
+```bash
+/get news.ycombinator.com | /run htmlclean | /run linkextract | /run sort
+```
 
 ---
 
@@ -63,6 +48,20 @@ IsoBrowse takes a different approach:
 * **Composable:** everything works through pipelines
 
 ---
+
+## 🧠 How it works
+
+Everything is a simple flow:
+`data → pipeline → wasm → output`
+
+* `/read`, `/get`, `/echo` → provide data
+* `/run` → executes a WASM tool
+* `|` → connects everything
+
+<img width="1512" height="972" alt="Image" src="https://github.com/user-attachments/assets/173081a3-7753-416e-972e-3eabdc19239b" />
+
+---
+
 
 ## 🧩 Modules (WASM TOOLS)
 
@@ -122,9 +121,8 @@ cargo build --target wasm32-wasip1 --release
 
 ## 🎬 Demo
 
-[https://github.com/user-attachments/assets/2a91ad9c-3496-4ae5-b008-4a8ef73a3939](https://github.com/user-attachments/assets/2a91ad9c-3496-4ae5-b008-4a8ef73a3939)
+https://github.com/user-attachments/assets/6c459654-8fbc-41c8-be25-930ca89d52a2
 
-https://github.com/user-attachments/assets/dd4698f0-7034-48f9-8270-5e3a17363207
 
 ---
 
@@ -161,7 +159,7 @@ sh run.sh
 ## ⚖️ Limitations
 
 * Text & data focused (JSON, HTML, logs)
-* Not a full browser (no SPA support)
+* Not a full browser for /nojs (no SPA support)
 * Strict sandbox (no direct file/network access)
 * Experimental — some edge cases may break
 
