@@ -54,6 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build(&event_loop)?;
 
     let init_script = r##"
+    
+
         window.isoCatalogData = [];
 
         window.injectCmd = function(modName) {
@@ -130,114 +132,101 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         window.addEventListener('keydown', function(e) {
-            let host = document.getElementById('isobrowse-shadow-host');
-            let shadowActive = host ? host.shadowRoot.activeElement : null;
-            let activeEl = shadowActive || document.activeElement;
-            let isInput = (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT'));
-
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                if (isInput) {
-                    if (e.key === 'ArrowLeft' && activeEl.selectionStart === 0) e.preventDefault();
-                    if (e.key === 'ArrowRight' && activeEl.selectionStart === activeEl.value.length) e.preventDefault();
-                }
-            }
-
-            if (e.metaKey || e.ctrlKey) {
-                let k = e.key.toLowerCase();
+            try {
+                let host = document.getElementById('isobrowse-shadow-host');
+                let shadowRoot = host ? host.shadowRoot : null;
+                let activeEl = shadowRoot ? shadowRoot.activeElement : null;
+                if (!activeEl) activeEl = document.activeElement;
                 
-                if (k === 'c') {
-                    if (window.isoIsRunning) {
-                        e.preventDefault();
-                        window.isoIsRunning = false;
-                        window.isoCancelFlag = true; 
+                let isInput = (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT'));
+
+                // 🛡️ MACOS ÇÖKME ENGELLEYİCİ 1: Sınır Dışı Ok Tuşları
+                if (isInput && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                    if (e.key === 'ArrowLeft' && activeEl.selectionStart === 0) { e.preventDefault(); return; }
+                    if (e.key === 'ArrowRight' && activeEl.selectionStart === activeEl.value.length) { e.preventDefault(); return; }
+                }
+
+                // 🛡️ MACOS ÇÖKME ENGELLEYİCİ 2: Boşta Basılan Harfler
+                if (!isInput) {
+                    // Sayfa kaydırmak için Boşluk (Space) ve Ok tuşlarına izin ver, gerisini YUT!
+                    if (e.key === 'Backspace' || (e.key.length === 1 && e.key !== ' ' && !e.metaKey && !e.ctrlKey)) {
+                        e.preventDefault(); // macOS bu tuşu hiç görmeyecek!
                         
-                        if (host && host.shadowRoot) {
-                            let histDiv = host.shadowRoot.getElementById('terminal-history');
-                            if (histDiv) {
-                                let newEntry = document.createElement('div');
-                                newEntry.innerHTML = `<span style="color: #ff3366; font-weight: bold;">^C (Process Terminated by User)</span>`;
-                                histDiv.appendChild(newEntry);
+                        // Terminal görünürse harfi zorla komut satırına yazdır (Global Typing)
+                        let isTerminalVisible = shadowRoot && shadowRoot.getElementById('terminal-input-line') && window.getComputedStyle(shadowRoot.getElementById('terminal-input-line')).display !== 'none';
+                        if (isTerminalVisible && e.key.length === 1 && !window.isoIsRunning) {
+                            let term = shadowRoot.getElementById('iso-url');
+                            let spot = document.getElementById('spotlight-input');
+                            if (spot && window.getComputedStyle(document.getElementById('iso-spotlight-home')).display !== 'none') {
+                                spot.focus(); spot.value += e.key;
+                            } else if (term) {
+                                term.focus(); term.value += e.key;
                             }
-                            
-                            let inputLine = host.shadowRoot.getElementById('terminal-input-line');
-                            if (inputLine) {
-                                inputLine.style.display = 'flex';
-                                let tc = host.shadowRoot.getElementById('terminal-content');
-                                if (tc) tc.scrollTop = tc.scrollHeight;
-                                setTimeout(() => { host.shadowRoot.getElementById('iso-url').focus(); }, 50);
-                            }
-                            
-                            let stat = host.shadowRoot.getElementById('iso-engine-status');
-                            if (stat) { stat.innerText = 'STANDBY'; stat.style.color = '#00ccff'; }
-                            
-                            let ws = document.getElementById('iso-workspace-view');
-                            if (ws) ws.style.display = 'none';
                         }
                         return;
-                    } 
-                    else {
-                        e.preventDefault();
-                        let textToCopy = isInput ? activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd) : window.getSelection().toString();
-                        if(!textToCopy && host && host.shadowRoot && host.shadowRoot.getSelection) {
-                            textToCopy = host.shadowRoot.getSelection().toString();
-                        }
-                        if (textToCopy) navigator.clipboard.writeText(textToCopy).catch(()=>{});
                     }
-                } 
-                else if (k === 'v') {
-                    e.preventDefault();
-                    navigator.clipboard.readText().then(text => {
-                        if (isInput) {
-                            let start = activeEl.selectionStart;
-                            let end = activeEl.selectionEnd;
-                            activeEl.value = activeEl.value.substring(0, start) + text + activeEl.value.substring(end);
-                            activeEl.selectionStart = activeEl.selectionEnd = start + text.length;
-                        }
-                    }).catch(()=>{});
-                } 
-                else if (k === 'a') { 
-                    e.preventDefault(); 
-                    if (isInput) { 
-                        activeEl.select(); 
-                    } else {
-                        let s = window.getSelection();
-                        let r = document.createRange();
-                        r.selectNodeContents(document.body);
-                        s.removeAllRanges();
-                        s.addRange(r);
-                    }
-                } 
-                else if (k === 'x' && isInput) {
-                    e.preventDefault();
-                    let textToCopy = activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd);
-                    if (textToCopy) {
-                        navigator.clipboard.writeText(textToCopy).catch(()=>{});
-                        activeEl.value = activeEl.value.substring(0, activeEl.selectionStart) + activeEl.value.substring(activeEl.selectionEnd);
-                        activeEl.selectionStart = activeEl.selectionEnd = activeEl.selectionStart;
-                    }
-                } else if (['z','s','p','r','t','n','w'].includes(k)) {
-                    e.preventDefault(); 
                 }
-            } else {
-                if (!isInput && e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-                    e.preventDefault(); 
-                    if (window.isoIsRunning) return; 
+
+                // 🛡️ KLASİK KOPYALA / YAPIŞTIR (Sorunsuz Versiyon)
+                // 🛡️ KLASİK KOPYALA / YAPIŞTIR (macOS Crash Korumalı Kesin Sürüm)
+                if (e.metaKey || e.ctrlKey) {
+                    let k = e.key.toLowerCase();
                     
-                    let spot = document.getElementById('spotlight-input');
-                    let host = document.getElementById('isobrowse-shadow-host');
-                    let term = host ? host.shadowRoot.getElementById('iso-url') : null;
-                    
-                    if (spot && window.getComputedStyle(document.getElementById('iso-spotlight-home')).display !== 'none') {
-                        spot.focus(); spot.value += e.key;
-                    } else if (term) {
-                        let bBar = host.shadowRoot.getElementById('bottom-bar');
-                        if (bBar && window.getComputedStyle(bBar).display !== 'none') {
-                            term.focus(); term.value += e.key;
+                    // İşletim sisteminin kısayolları çökertmesini KESİNLİKLE engelle!
+                    if (k === 'c' || k === 'v' || k === 'x' || k === 'a') {
+                        e.preventDefault(); // İŞTE HAYAT KURTARAN SATIR! (macOS bu tuşları hiç görmeyecek)
+                        
+                        if (k === 'c') {
+                            if (window.isoIsRunning) {
+                                window.isoIsRunning = false; window.isoCancelFlag = true;
+                                if (shadowRoot) {
+                                    let histDiv = shadowRoot.getElementById('terminal-history');
+                                    if (histDiv) histDiv.innerHTML += `<div style="color:#ff3366;font-weight:bold;">^C (Terminated)</div>`;
+                                    let inputLine = shadowRoot.getElementById('terminal-input-line');
+                                    if (inputLine) { inputLine.style.display = 'flex'; setTimeout(() => { shadowRoot.getElementById('iso-url').focus(); }, 50); }
+                                    let stat = shadowRoot.getElementById('iso-engine-status');
+                                    if (stat) { stat.innerText = 'STANDBY'; stat.style.color = '#00ccff'; }
+                                }
+                            } else {
+                                // Manuel Kopyalama
+                                let text = isInput ? activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd) : window.getSelection().toString();
+                                if (text) navigator.clipboard.writeText(text).catch(()=>{});
+                            }
+                        } else if (k === 'v' && isInput) {
+                            // Manuel Yapıştırma
+                            navigator.clipboard.readText().then(text => {
+                                let start = activeEl.selectionStart; let end = activeEl.selectionEnd;
+                                activeEl.value = activeEl.value.substring(0, start) + text + activeEl.value.substring(end);
+                                activeEl.selectionStart = activeEl.selectionEnd = start + text.length;
+                            }).catch(()=>{});
+                        } else if (k === 'a') {
+                            // Manuel Tümünü Seçme
+                            if (isInput) activeEl.select();
+                            else {
+                                let s = window.getSelection(); let r = document.createRange();
+                                r.selectNodeContents(document.body); s.removeAllRanges(); s.addRange(r);
+                            }
+                        } else if (k === 'x' && isInput) {
+                            // Manuel Kesme
+                            let text = activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd);
+                            if (text) {
+                                navigator.clipboard.writeText(text).catch(()=>{});
+                                activeEl.value = activeEl.value.substring(0, activeEl.selectionStart) + activeEl.value.substring(activeEl.selectionEnd);
+                                activeEl.selectionStart = activeEl.selectionEnd = activeEl.selectionStart;
+                            }
                         }
                     }
                 }
-            }
+
+            } catch(err) { console.error('Keyboard Shield Error:', err); }
         }, { capture: true, passive: false });
+
+
+
+
+
+
+
 
     document.addEventListener('DOMContentLoaded', () => {
         let shield = document.createElement('style');
@@ -304,7 +293,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             window.addEventListener('message', (e) => {
+                // YENİ EKLENEN KOD: Iframe içinden gelen gizli kopyalama sinyalini yakalar
+                if (e.data && e.data.type === 'COPY_TEXT') {
+                    navigator.clipboard.writeText(e.data.payload).catch(()=>{});
+                }
+                
+                // BUNLAR ZATEN VARDI
                 if (e.data && (e.data.type === 'SURF_NAVIGATE' || e.data.type === 'NAVIGATE')) {
+            
                     let safeUrl = "/nojs " + e.data.url;
                     if(document.getElementById('isobrowse-shadow-host')) {
                         document.getElementById('isobrowse-shadow-host').shadowRoot.getElementById('iso-url').value = safeUrl;
@@ -841,6 +837,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             checkAndInject();
         }
     "##;
+    
 
     let webview = WebViewBuilder::new(&window)
         .with_initialization_script(init_script) 
@@ -1117,7 +1114,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         unquoted = &unquoted[1..unquoted.len()-1];
                                     }
                                     pipe_data = unquoted.replace("\\n", "\n").replace("\\t", "\t");
+                                
+                                    // EĞER BU BORU HATTINDAKİ SON VEYA TEK KOMUTSA EKRANA BAS
+                                    if is_last {
+                                        let safe_pipe_data = pipe_data.replace("<", "&lt;").replace(">", "&gt;");
+                                        let success_html = format!("
+                                        <div style='display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; background:#050505; color:#00ff41; font-family:monospace; text-align:center;'>
+                                            <h1 style='color:#00ccff; text-shadow: 0 0 10px #00ccff55;'>⚡ Sandbox Execution Complete</h1>
+                                            <div style='background:#111; border:1px solid #333; padding:20px; text-align:left; max-width:800px; margin-top:20px; width: 90%; box-shadow: 0 0 15px #00ff4111;'>
+                                                <div style='background:#000; border:1px solid #00ff41; padding:20px; max-height: 400px; overflow-y: auto;'>
+                                                    <div style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #333; padding-bottom:10px; margin-bottom:10px;'>
+                                                        <span style='color:#888; font-size:10px;'>[PIPELINE OUTPUT TERMINAL]</span>
+                                                        <button onclick='let val=this.parentElement.nextElementSibling.innerText; try{{navigator.clipboard.writeText(val);}}catch(e){{let ta=document.createElement(`textarea`);ta.value=val;document.body.appendChild(ta);ta.select();document.execCommand(`copy`);ta.remove();}} let oldBg=this.style.background; this.style.background=`#00ff41`; this.style.color=`#000`; this.innerText=`[ COPIED! ]`; setTimeout(()=>{{this.style.background=oldBg; this.style.color=`#00ff41`; this.innerText=`[ COPY DATA ]`;}}, 800);' style='background:#003300; color:#00ff41; border:1px solid #00ff41; cursor:pointer; padding:4px 10px; font-family:monospace; font-weight:bold; outline:none; transition:0.2s;'>[ COPY DATA ]</button>
+                                                    </div>
+                                                    <div style='color:#00ff41; font-size:19px; line-height:1.6; letter-spacing:0.5px; white-space: pre-wrap;'>{}</div>
+                                                </div>
+                                            </div>
+                                        </div>", safe_pipe_data);
+                                
+                                        let _ = p_i.send_event(UserEvent::WasmSurfRender { 
+                                            html: success_html, 
+                                            url: "isobrowse://sandbox/pipeline".to_string(), 
+                                            cpu_ms: start_time.elapsed().as_millis(), 
+                                            ram_kb: pipe_data.len() / 1024, 
+                                            blocked_count: 0 
+                                        });
+                                    }
                                 }
+                                
                                 else if cmd.starts_with("/rhai ") {
                                     let script = cmd.strip_prefix("/rhai ").unwrap_or("").trim();
                                     let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [RHAI ENGINE]: Executing sandbox script...")));
@@ -1367,10 +1391,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
                         } else {
-                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Invalid command. Use /nojs <url> to view websites safely.")));
-                            let err_html = format!("<div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'><h2>🚨 COMMAND NOT FOUND</h2><p>IsoBrowse is a Zero-Trust Pipeline Terminal.<br>To view a website safely, you must use the <b>/nojs</b> command.<br><br>Example: <i>/nojs {}</i></p></div>", raw_input);
+                            let _ = p_i.send_event(UserEvent::UpdateTerminal(format!("> [ERROR]: Command not recognized. Please check the Examples menu.")));
+                            
+                            // Güvenliği ihlal etmemek için kullanıcının girdiği rastgele metni HTML taglerinden temizliyoruz
+                            let safe_raw_input = raw_input.replace("<", "&lt;").replace(">", "&gt;");
+                            
+                            let err_html = format!("
+                            <div style='color:#ff3366; font-family:monospace; text-align:center; padding:50px;'>
+                                <h2>🚨 COMMAND NOT FOUND</h2>
+                                <p style='color:#aaa; font-size:16px;'>IsoBrowse did not understand the input: <span style='color:#fff; background:#222; padding:2px 6px; border-radius:4px;'>{}</span></p>
+                                
+                                <div style='background:#111; border:1px dashed #ffcc00; padding:25px; text-align:left; max-width:650px; margin:30px auto; color:#fff; border-radius:8px; box-shadow: 0 0 20px rgba(255,204,0,0.05);'>
+                                    <div style='color:#ffcc00; font-weight:bold; font-size:18px; margin-bottom:15px;'>💡 QUICK TIPS</div>
+                                    <p style='color:#aaa; margin-bottom: 20px;'>Please check the <b>[ 💡 ] EXAMPLES</b> button in the terminal to see how pipelines work.</p>
+                                    
+                                    <div style='margin-bottom:15px;'>
+                                        <span style='color:#00ff41; font-weight:bold;'>📂 Secure Local File Read:</span><br>
+                                        <code style='color:#888; background:#000; padding:4px 8px; border-radius:4px; display:inline-block; margin-top:5px; border:1px solid #333;'>/read ~/Desktop/server.log | /run head 10</code>
+                                    </div>
+                                    
+                                    <div>
+                                        <span style='color:#00ccff; font-weight:bold;'>🌐 Safe Web Browsing (Zero-Trust):</span><br>
+                                        <code style='color:#888; background:#000; padding:4px 8px; border-radius:4px; display:inline-block; margin-top:5px; border:1px solid #333;'>/nojs news.ycombinator.com</code>
+                                    </div>
+                                </div>
+                            </div>", safe_raw_input);
+                            
                             let _ = p_i.send_event(UserEvent::WasmSurfRender { html: err_html, url: "isobrowse://sandbox/error".to_string(), cpu_ms: 0, ram_kb: 0, blocked_count: 0 });
                         }
+                        
                     });
                 }
             }
@@ -1392,14 +1441,67 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     template, style, script, title, link, meta { display: none !important; opacity: 0 !important; visibility: hidden !important; }
                     .iso-noscript { display: block !important; opacity: 1 !important; visibility: visible !important; }
                 </style>";
+
+                // İŞTE YENİ ZIRHIMIZ: Web sitesinin içine gizlice sızan ajan script!
+                let safe_script = r#"<script>
+                document.addEventListener('keydown', function(e) {
+                    let activeEl = document.activeElement;
+                    let isInput = (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT'));
+                    
+                    // ZIRH 1: Ok Tuşları Koruması
+                    if (isInput && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                        if (e.key === 'ArrowLeft' && activeEl.selectionStart === 0) { e.preventDefault(); return; }
+                        if (e.key === 'ArrowRight' && activeEl.selectionStart === activeEl.value.length) { e.preventDefault(); return; }
+                    }
+
+                    // ZIRH 2: Harf Tuşları Koruması
+                    if (!isInput) {
+                        if (e.key === 'Backspace' || (e.key.length === 1 && e.key !== ' ' && !e.metaKey && !e.ctrlKey)) {
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                    
+                    // 🛡️ ZIRH 3: MACOS KOPYALA ÇÖKME ENGELLEYİCİSİ (Iframe İçi)
+                    if (e.metaKey || e.ctrlKey) {
+                        let k = e.key.toLowerCase();
+                        if (k === 'c' || k === 'v' || k === 'x' || k === 'a') {
+                            e.preventDefault(); // macOS, bu tuşları GÖREMEZSİN!
+                            
+                            if (k === 'c') {
+                                let text = isInput ? activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd) : window.getSelection().toString();
+                                if (text) {
+                                    navigator.clipboard.writeText(text).catch(() => {
+                                        // Fallback Copy
+                                        let ta = document.createElement('textarea'); ta.value = text;
+                                        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+                                    });
+                                }
+                            } else if (k === 'a') {
+                                if (isInput) activeEl.select();
+                                else {
+                                    let s = window.getSelection(); let r = document.createRange();
+                                    r.selectNodeContents(document.body); s.removeAllRanges(); s.addRange(r);
+                                }
+                            }
+                        }
+                    }
+                }, { capture: true, passive: false });
+            </script>"#;
+
+
+
                 
                 let base_tag = format!("<base href=\"{}\" target=\"_self\">", url);
-                let final_srcdoc = format!("{}\n{}\n{}", base_tag, fallback_css, html);
+                
+                // Zırhı, HTML kodunun arasına sıkıştırıyoruz
+                let final_srcdoc = format!("{}\n{}\n{}\n{}", base_tag, fallback_css, safe_script, html);
                 
                 let js = format!("window.renderSurfMode({}, '{}', {}, {}, {})", 
                     serde_json::to_string(&final_srcdoc).unwrap_or_else(|_| "\"\"".to_string()), url, cpu_ms, ram_kb, blocked_count);
                 let _ = webview.evaluate_script(&js);
             }
+
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => *control_flow = ControlFlow::Exit,
             _ => (),
         }

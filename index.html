@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickPipe | Inspect APIs Instantly</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jmespath@0.16.0/jmespath.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .top-banner {
+            width: 100%;
+            background-color: #1f2428;
+            border-bottom: 1px solid #30363d;
+            color: #8b949e;
+            text-align: center;
+            padding: 10px 0;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .container {
+            width: 100%;
+            max-width: 850px;
+            padding: 50px 20px;
+            box-sizing: border-box;
+        }
+        .logo {
+            font-size: 26px;
+            font-weight: 900;
+            margin-bottom: 40px;
+            text-align: center;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #58a6ff, #7ee787);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 34px;
+            color: #c9d1d9;
+            margin: 0 0 16px 0;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .header h1 span {
+            color: #58a6ff;
+        }
+        .header p {
+            color: #c9d1d9;
+            font-size: 18px;
+            font-weight: 500;
+            margin: 0 0 8px 0;
+            line-height: 1.5;
+        }
+        .critical-note {
+            color: #8b949e !important;
+            font-size: 14px !important;
+            font-weight: 400 !important;
+            margin-bottom: 15px !important;
+        }
+        .highlight-badge {
+            display: inline-block;
+            background-color: rgba(46, 160, 67, 0.15);
+            color: #7ee787;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid rgba(46, 160, 67, 0.4);
+            margin-top: 10px;
+        }
+        .input-group {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        .form-row:last-child {
+            margin-bottom: 0;
+        }
+        label {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #c9d1d9;
+        }
+        input[type="text"] {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 14px;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+        .pipe-indicator {
+            text-align: center;
+            color: #484f58;
+            font-size: 24px;
+            margin: -5px 0 15px 0;
+            font-weight: bold;
+            user-select: none;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        }
+        .btn-primary {
+            background-color: #238636;
+            color: #ffffff;
+            border: 1px solid rgba(240, 246, 252, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #2ea043;
+        }
+        .btn-secondary {
+            background-color: transparent;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+        .btn-secondary:hover {
+            background-color: #30363d;
+            color: #ffffff;
+        }
+        .output-area {
+            background-color: #0a0d12;
+            border: 1px solid #484f58;
+            border-radius: 8px;
+            padding: 35px 25px 25px 25px;
+            min-height: 250px;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.4);
+            margin-bottom: 50px;
+        }
+        .output-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #0d1117;
+            padding: 2px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #c9d1d9;
+            border: 1px solid #484f58;
+            border-radius: 12px;
+        }
+        /* YENİ: Şık Copy Butonu */
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background-color: #21262d;
+            color: #8b949e;
+            border: 1px solid #30363d;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: none; /* Container içindeki flex kurallarını çiğnemek için */
+            width: auto;
+        }
+        .copy-btn:hover {
+            background-color: #30363d;
+            color: #c9d1d9;
+            border-color: #484f58;
+        }
+        pre {
+            margin: 0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 16px;
+            color: #7ee787;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-banner">
+    Stop wasting time opening Postman.
+</div>
+
+<div class="container">
+    <div class="logo">
+        <svg height="28" viewBox="0 0 16 16" width="28" fill="#58a6ff"><path d="M11.28 6.78a.75.75 0 0 0-1.06-1.06L7.25 8.69 5.78 7.22a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l3.5-3.5Z"></path><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0Zm-1.5 0a6.5 6.5 0 1 0-13 0 6.5 6.5 0 0 0 13 0Z"></path></svg>
+        QuickPipe
+    </div>
+    
+    <div class="header">
+        <h1>Inspect APIs instantly — <span>no installs, no setup</span></h1>
+        <p>Paste a URL → get exactly what you need.</p>
+        <p class="critical-note">Built for quick API checks — not full-blown API clients.</p>
+        <div class="highlight-badge">⚡ Runs locally in your browser (no backend)</div>
+    </div>
+
+    <div class="input-group">
+        <div class="form-row">
+            <label for="url-input">1. Fetch Data (URL)</label>
+            <input type="text" id="url-input" placeholder="e.g. https://api.github.com/users/octocat" spellcheck="false">
+        </div>
+        
+        <div class="pipe-indicator">|</div>
+
+        <div class="form-row">
+            <label for="jq-input">2. Filter JSON (Query)</label>
+            <input type="text" id="jq-input" placeholder="e.g. name" spellcheck="false">
+        </div>
+
+        <div class="button-group">
+            <button id="run-btn" class="btn-primary">Fetch & Filter</button>
+            <button id="example-btn" class="btn-secondary">Try Example</button>
+        </div>
+    </div>
+
+    <div class="output-area">
+        <div class="output-label">Terminal Output</div>
+        <button id="copy-btn" class="copy-btn">Copy</button>
+        <pre id="output-display">// Ready to fetch data...</pre>
+    </div>
+</div>
+
+<script>
+    const urlInput = document.getElementById('url-input');
+    const jqInput = document.getElementById('jq-input');
+    const outDisplay = document.getElementById('output-display');
+    const copyBtn = document.getElementById('copy-btn');
+
+    // BORU HATTI MOTORU (Saf JavaScript ile)
+    async function executePipeline(url, query) {
+        if (!url) {
+            outDisplay.style.color = '#ff7b72';
+            outDisplay.innerText = 'Error: URL cannot be empty.';
+            return;
+        }
+
+        outDisplay.style.color = '#8b949e';
+        outDisplay.innerText = `Fetching data from ${url} ...`;
+
+        try {
+            let rawJson;
+            
+            // 1. Doğrudan Fetch Deneme (CORS politikası açık siteler için)
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                rawJson = await response.json();
+            } catch (directError) {
+                // 2. CORS Engeli Varsa (Neredeyse her zaman): Açık kaynaklı bir köprü (proxy) kullanıyoruz.
+                // Veriler senin sunucuna değmeden AllOrigins üzerinden tarayıcıya iner.
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const proxyResponse = await fetch(proxyUrl);
+                if (!proxyResponse.ok) throw new Error(`HTTP Proxy Error: ${proxyResponse.status}`);
+                rawJson = await proxyResponse.json();
+            }
+
+            let finalResult = rawJson;
+            
+            // 3. JMESPath ile Gerçek JSON Filtreleme
+            if (query) {
+                try {
+                    // JMESPath syntax noktayla başlamaz, direkt anahtar kelime yazılır (örn: 'name')
+                    finalResult = jmespath.search(rawJson, query);
+                    
+                    // JMESPath büyük/küçük harf duyarlıdır. Bulamazsa null döner.
+                    if (finalResult === null) {
+                        outDisplay.style.color = '#ffb000';
+                        outDisplay.innerText = `// Query returned null.\n// Note: JSON keys are case-sensitive. Did you check the case?`;
+                        return;
+                    }
+                } catch (parseError) {
+                    outDisplay.style.color = '#ff7b72';
+                    outDisplay.innerText = `Query Syntax Error:\n${parseError.message}`;
+                    return;
+                }
+            }
+
+            // 4. Sonucu Ekrana Bas (Syntax Highlighting taklidi ile)
+            outDisplay.style.color = '#7ee787'; // Başarı yeşili
+            if (typeof finalResult === 'string') {
+                outDisplay.innerText = `"${finalResult}"`;
+            } else {
+                // JMESPath'in JSON formatını güzelleştirip ekrana basıyoruz
+                outDisplay.innerText = JSON.stringify(finalResult, null, 2);
+            }
+
+        } catch (err) {
+            outDisplay.style.color = '#ff7b72'; // Hata kırmızısı
+            outDisplay.innerText = `Pipeline Error:\n${err.message}`;
+        }
+    }
+
+    // Buton Dinleyicileri
+    document.getElementById('run-btn').addEventListener('click', () => {
+        executePipeline(urlInput.value.trim(), jqInput.value.trim());
+    });
+
+    document.getElementById('example-btn').addEventListener('click', () => {
+        urlInput.value = 'https://jsonplaceholder.typicode.com/users/1';
+        jqInput.value = 'name'; // JMESPath style
+        executePipeline(urlInput.value, jqInput.value);
+    });
+
+    // Enter'a basınca çalışsın
+    const triggerEnter = (e) => { if (e.key === 'Enter') document.getElementById('run-btn').click(); };
+    urlInput.addEventListener('keydown', triggerEnter);
+    jqInput.addEventListener('keydown', triggerEnter);
+
+    // YENİ: Kopyalama Mantığı
+    copyBtn.addEventListener('click', () => {
+        const textToCopy = outDisplay.innerText;
+        
+        // Boşsa veya varsayılan mesajsa kopyalama
+        if (textToCopy.startsWith('//')) return;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            // Görsel geribildirim (feedback)
+            copyBtn.innerText = 'Copied!';
+            copyBtn.style.color = '#7ee787';
+            copyBtn.style.borderColor = '#7ee787';
+            
+            // 2 saniye sonra geri al
+            setTimeout(() => {
+                copyBtn.innerText = 'Copy';
+                copyBtn.style.color = '#8b949e';
+                copyBtn.style.borderColor = '#30363d';
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            copyBtn.innerText = 'Error!';
+        });
+    });
+
+    // Sayfa Yüklendiğinde GitLab Commits Örneğini Otomatik Çalıştır (v2.1 Bulletproof)
+    window.addEventListener('DOMContentLoaded', () => {
+        // Senin Title hatasını düzelttiğim GitLab Commits örneği.
+        urlInput.value = 'https://gitlab.com/api/v4/projects/278964/repository/commits';
+        jqInput.value = '[0].title'; // JSON verisinde anahtar küçük harf, o yüzden title
+        
+        // Sistemin tam yüklenmesi için ufak bir bekleme (Savaş tecrübesi)
+        setTimeout(() => {
+            executePipeline(urlInput.value, jqInput.value);
+        }, 300);
+    });
+</script>
+
+</body>
+</html>
